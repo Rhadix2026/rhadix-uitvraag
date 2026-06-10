@@ -5,7 +5,7 @@ import { login as apiLogin, getMe, clearAuthToken } from './services/api'
 import LoginScreen    from './pages/LoginScreen'
 import Home           from './pages/Home'
 import QueryFlow      from './pages/QueryFlow'
-import Registration   from './pages/Registration'
+import Zorgaanbieders from './pages/Zorgaanbieders'
 import Results        from './pages/Results'
 import Gebruikersbeheer from './pages/Gebruikersbeheer'
 import Organisaties   from './pages/Organisaties'
@@ -38,7 +38,9 @@ export default function App() {
   const isAdmin    = isPlatform || authUser.role === 'ORG_ADMIN'
 
   const navLinks = [
-    { to: '/opvragen', label: 'Opvragen' },
+    { to: '/opvragen',      label: 'Opvragen' },
+    { to: '/zorgaanbieders', label: 'Zorgaanbieders' },
+    { to: '/resultaten',    label: 'Resultaten' },
     ...(isAdmin    ? [{ to: '/gebruikers',   label: 'Gebruikers' }] : []),
     ...(isPlatform ? [{ to: '/organisaties', label: 'Organisaties' }] : []),
   ]
@@ -49,7 +51,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home authUser={authUser} />} />
         <Route path="/opvragen" element={<QueryFlow />} />
-        <Route path="/beheer" element={<Registration />} />
+        <Route path="/zorgaanbieders" element={<Zorgaanbieders />} />
         <Route path="/resultaten" element={<Results />} />
         <Route path="/gebruikers" element={isAdmin ? <Gebruikersbeheer authUser={authUser} /> : <Navigate to="/" replace />} />
         <Route path="/organisaties" element={isPlatform ? <Organisaties /> : <Navigate to="/" replace />} />

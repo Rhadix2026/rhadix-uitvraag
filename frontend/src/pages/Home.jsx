@@ -17,17 +17,18 @@ export default function Home({ authUser }) {
   const isAdmin    = isPlatform || authUser?.role === 'ORG_ADMIN'
 
   const cards = [
-    { to: '/opvragen', icon: '🔎', title: 'Opvragen', desc: 'Dataset → zorgaanbieders → uitwisselprofiel → SPARQL → resultaten.', status: 'Gepland' },
+    { to: '/opvragen', icon: '🔎', title: 'Opvragen', desc: 'Uitwisselprofiel → indicatoren → zorgaanbieders → datastation → resultaten.', status: 'Beschikbaar' },
+    { to: '/zorgaanbieders', icon: '🏥', title: 'Zorgaanbieders', desc: 'Zorgaanbieders registreren zich om uitvragen te kunnen ontvangen.', status: 'Beschikbaar' },
     ...(isAdmin ? [{ to: '/gebruikers', icon: '👥', title: 'Gebruikersbeheer', desc: 'Gebruikers in uw organisatie beheren: rollen, (de)activeren, wachtwoorden.', status: 'Beschikbaar' }] : []),
     ...(isPlatform ? [{ to: '/organisaties', icon: '🏢', title: 'Organisaties', desc: 'Organisaties op het platform beheren en beheerders aanmaken.', status: 'Beschikbaar' }] : []),
-    { to: '/resultaten', icon: '📊', title: 'Resultaten', desc: 'Indicatorresultaten bekijken, vergelijken en exporteren.', status: 'Gepland' },
+    { to: '/resultaten', icon: '📊', title: 'Resultaten', desc: 'Indicatorresultaten bekijken, vergelijken en exporteren (CSV/Excel/API).', status: 'Beschikbaar' },
   ]
 
   return (
     <Page>
       <PageTitle badge={`Ingelogd als ${authUser?.name || authUser?.email}`}
         title="Welkom bij de KIK-Starter"
-        sub="Een herbouw van de ZIN KIK-V Starter in de Rhadix-stack. Het gebruikersbeheer is beschikbaar; de KIK-modules volgen stap voor stap." />
+        sub="Een herbouw van de ZIN KIK-V Starter in de Rhadix-stack. De opvraag-flow en het gebruikersbeheer zijn beschikbaar." />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20, marginBottom: 28 }}>
         {cards.map(m => (

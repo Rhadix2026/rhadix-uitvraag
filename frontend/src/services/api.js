@@ -48,3 +48,28 @@ export const createOrgUser  = (b) => req('POST', '/org/users', b)
 export const toggleUser     = (id) => req('PATCH', `/org/users/${id}/deactivate`)
 export const resetUserPwd   = (id, new_password) => req('POST', `/org/users/${id}/reset-password`, { new_password })
 export const deleteOrgUser  = (id) => req('DELETE', `/org/users/${id}`)
+
+// ── Uitwisselprofielen ──
+export const listProfielen = () => req('GET', '/profielen')
+export const getProfiel    = (key) => req('GET', `/profielen/${key}`)
+
+// ── Zorgaanbieders ──
+export const listZorgaanbieders   = () => req('GET', '/zorgaanbieders')
+export const registerZorgaanbieder = (b) => req('POST', '/zorgaanbieders/register', b)
+
+// ── Uitvragen ──
+export const createUitvraag = (b) => req('POST', '/uitvragen', b)
+export const listUitvragen  = () => req('GET', '/uitvragen')
+export const getUitvraag    = (id) => req('GET', `/uitvragen/${id}`)
+
+// Export-download met auth-header → blob → bestand opslaan
+export async function downloadUitvraag(id, fmt = 'csv') {
+  const res = await fetch(`${BASE}/uitvragen/${id}/export.${fmt}`, { headers: authHeaders() })
+  if (!res.ok) throw new Error(`Export mislukt (${res.status})`)
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = `uitvraag-${id.slice(0, 8)}.${fmt}`
+  document.body.appendChild(a); a.click(); a.remove()
+  URL.revokeObjectURL(url)
+}

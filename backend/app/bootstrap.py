@@ -6,12 +6,15 @@ import uuid
 
 from app.database import Base, SessionLocal, engine
 from app.models.auth_models import Tenant, User, UserRole
+from app.models import kik_models  # noqa: F401  (registreert KIK-tabellen)
+from app.models.kik_models import Zorgaanbieder
 from app.auth.security import hash_password
 
 
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _seed_platform_admin()
+    _seed_demo_zorgaanbieders()
 
 
 def _seed_platform_admin() -> None:
@@ -36,6 +39,24 @@ def _seed_platform_admin() -> None:
             role=UserRole.PLATFORM_ADMIN, is_active=True,
         )
         db.add(admin)
+        db.commit()
+    finally:
+        db.close()
+
+
+def _seed_demo_zorgaanbieders() -> None:
+    """Seed een paar demo-zorgaanbieders zodat de opvraag-flow direct te proberen is."""
+    demo = [
+        ("Zorggroep De Linden", "Utrecht", "info@delinden.nl"),
+        ("Stichting Thuiszorg West", "Rotterdam", "contact@thuiszorgwest.nl"),
+        ("Verpleeghuis Avondrood", "Groningen", "info@avondrood.nl"),
+    ]
+    db = SessionLocal()
+    try:
+        if db.query(Zorgaanbieder).count() > 0:
+            return
+        for naam, plaats, email in demo:
+            db.add(Zorgaanbieder(id=uuid.uuid4(), naam=naam, plaats=plaats, contact_email=email))
         db.commit()
     finally:
         db.close()
