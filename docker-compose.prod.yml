@@ -58,6 +58,7 @@ services:
       FUSEKI_USER:        admin
       FUSEKI_PASSWORD:    ${FUSEKI_PASSWORD:-kik-prod-admin}
       RHADIX_PROFILES_URL: ${PROFILES_URL:-}
+      VALIDATION_API_URL: ${VALIDATION_API_URL:-http://host.docker.internal:8010}
     ports:
       - "${BACKEND_PORT:-8012}:8000"
     healthcheck:
@@ -66,6 +67,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   frontend:
     image: ghcr.io/${GHCR_ORG:-rhadix2026}/uitvraag-frontend:${KIK_VERSION:-latest}

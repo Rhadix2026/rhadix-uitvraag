@@ -62,8 +62,12 @@ services:
       FUSEKI_USER:        admin
       FUSEKI_PASSWORD:    ${STAGING_FUSEKI_PASSWORD:-kik-staging-admin}
       RHADIX_PROFILES_URL: ${STAGING_PROFILES_URL:-}
+      VALIDATION_API_URL: ${VALIDATION_API_URL:-http://host.docker.internal:8011}
     ports:
       - "${STAGING_BACKEND_PORT:-8013}:8000"
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   frontend:
     image: ghcr.io/${GHCR_ORG:-rhadix2026}/uitvraag-frontend:${STAGING_IMAGE_TAG:-staging}

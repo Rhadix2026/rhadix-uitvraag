@@ -11,7 +11,7 @@ def meta():
     return {
         "name": "Rhadix Uitvraag",
         "edition": "KIK-V",
-        "version": "0.5.0",
+        "version": "0.6.0",
         "environment": os.getenv("KIK_ENV", "development"),
         "modules": [
             {"key": "query-flow", "label": "Opvragen", "status": "available"},

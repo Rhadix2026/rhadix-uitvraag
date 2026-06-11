@@ -88,14 +88,37 @@ def _seed_demo_zorgaanbieders() -> None:
 
 
 def _seed_capabilities() -> None:
-    """Seed de uitwisselprofiel-registry uit de demo-CSV (eenmalig)."""
-    from app.services import capabilities as caps_svc
+    """Seed de uitwisselprofiel-registry profiel-bewust (matcht de geladen bron)."""
+    from app.services import profiles as profiles_svc
     from app.routers.capabilities import apply_import
     db = SessionLocal()
     try:
-        if db.query(AanbiederCapability).count() > 0:
+        profs = profiles_svc.list_profiles()
+        if not profs:
             return
-        records, _ = caps_svc.parse_csv(caps_svc.SEED_CSV)
-        apply_import(db, records)
+        keys = {p["key"] for p in profs}
+        bestaand = db.query(AanbiederCapability).all()
+        if bestaand:
+            # Laat handmatige/actuele registry staan zolang die matcht met de bron.
+            if any(c.uitwisselprofiel in keys for c in bestaand):
+                return
+            # Bron is gewijzigd (andere sleutels) → demo-registry opnieuw seeden.
+            db.query(AanbiederCapability).delete()
+            db.commit()
+        providers = [("Zorggroep De Linden", "30112233", "Nedap"),
+                     ("Stichting Thuiszorg West", "44556677", "PinkRoccade"),
+                     ("Verpleeghuis Avondrood", "55667788", "Ecare")]
+        statuses = ["productie", "productie", "productie", "test", "implementatie"]
+        n = len(profs)
+        rows = []
+        for pi, (naam, kvk, lev) in enumerate(providers):
+            for j in range(min(4, n)):
+                prof = profs[(pi * 2 + j) % n]
+                rows.append({
+                    "aanbieder_id_type": "kvk", "aanbieder_id": kvk, "aanbieder_naam": naam,
+                    "software_leverancier": lev, "uitwisselprofiel": prof["key"],
+                    "versie": prof.get("versie") or "1.0", "status": statuses[j % len(statuses)],
+                    "laatst_bijgewerkt": "2026-02-01"})
+        apply_import(db, rows)
     finally:
         db.close()

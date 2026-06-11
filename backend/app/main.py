@@ -15,7 +15,7 @@ from app.bootstrap import init_db
 from app.routers import health, meta, admin, org, profiles, zorgaanbieders, uitvragen, capabilities
 from app.auth.router import router as auth_router
 
-APP_VERSION = "0.5.0"
+APP_VERSION = "0.6.0"
 
 app = FastAPI(title="Rhadix Uitvraag API", version=APP_VERSION)
 

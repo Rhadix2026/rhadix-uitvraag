@@ -137,14 +137,17 @@ export default function QueryFlow() {
                 <div style={{ fontSize: 13, color: 'var(--text3)' }}>{detail.afnemer} · uitwisselprofiel v{detail.versie}</div>
               </div>
             </div>
-            <div style={{ marginBottom: 16 }}>
-              <MetaRow label="Analyse-vraag"><i>"{detail.analyse_vraag}"</i></MetaRow>
-            </div>
+            {detail.analyse_vraag && (
+              <div style={{ marginBottom: 16 }}>
+                <MetaRow label="Analyse-vraag"><i>"{detail.analyse_vraag}"</i></MetaRow>
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
-              <MetaRow label="Juridische grondslag">{detail.grondslag}</MetaRow>
-              <MetaRow label="Doelbinding">{detail.doelbinding}</MetaRow>
-              <MetaRow label="Autorisatie">{detail.autorisatie}</MetaRow>
-              <MetaRow label="Terugkoppeling">{detail.terugkoppeling}</MetaRow>
+              {detail.grondslag && <MetaRow label="Juridische grondslag">{detail.grondslag}</MetaRow>}
+              {detail.doelbinding && <MetaRow label="Doelbinding">{detail.doelbinding}</MetaRow>}
+              {detail.autorisatie && <MetaRow label="Autorisatie">{detail.autorisatie}</MetaRow>}
+              {detail.terugkoppeling && <MetaRow label="Terugkoppeling">{detail.terugkoppeling}</MetaRow>}
+              {detail.bron && <MetaRow label="Bron"><a href={detail.bron} target="_blank" rel="noreferrer" style={{ color: 'var(--blue)' }}>uitwisselprofiel-repository ↗</a></MetaRow>}
             </div>
           </Card>
 
@@ -165,13 +168,15 @@ export default function QueryFlow() {
                           <span style={{ fontSize: 12, color: 'var(--text3)', whiteSpace: 'nowrap' }}>{i.eenheid}</span>
                         </div>
                         {i.definitie && <div style={{ fontSize: 12.5, color: 'var(--text3)', marginTop: 3, lineHeight: 1.45 }}>{i.definitie}</div>}
-                        <button onClick={(e) => { e.stopPropagation(); setOpenSparql(open ? null : i.code) }}
-                          style={{ marginTop: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--blue)', fontFamily: 'var(--font)' }}>
-                          {open ? '− SPARQL verbergen' : '+ SPARQL tonen'}
-                        </button>
+                        {i.sparql && (
+                          <button onClick={(e) => { e.stopPropagation(); setOpenSparql(open ? null : i.code) }}
+                            style={{ marginTop: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--blue)', fontFamily: 'var(--font)' }}>
+                            {open ? '− SPARQL verbergen' : '+ SPARQL tonen'}
+                          </button>
+                        )}
                       </div>
                     </div>
-                    {open && (
+                    {open && i.sparql && (
                       <pre style={{ margin: 0, padding: '12px 16px', background: '#0f1a30', color: '#cfe2f3', fontSize: 12, lineHeight: 1.5, overflowX: 'auto', borderTop: '1px solid var(--border)' }}>{i.sparql}</pre>
                     )}
                   </div>

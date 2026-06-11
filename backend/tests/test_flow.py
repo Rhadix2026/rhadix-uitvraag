@@ -121,3 +121,11 @@ def test_capabilities_import_csv(client, auth):
     assert bad.status_code == 422
     # zonder token -> 401
     assert client.post("/api/capabilities/import", files={"file": ("x.csv", "a,b\n1,2", "text/csv")}).status_code == 401
+
+
+def test_profielen_refresh_admin(client, auth):
+    r = client.post("/api/profielen/refresh", headers=auth)
+    assert r.status_code == 200, r.text
+    assert "bron" in r.json() and r.json()["profielen"] >= 1
+    # zonder token -> 401
+    assert client.post("/api/profielen/refresh").status_code == 401
