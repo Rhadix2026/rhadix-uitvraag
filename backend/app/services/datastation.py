@@ -70,14 +70,17 @@ def vraag_indicator(zorgaanbieder, indicator: dict) -> DatastationAntwoord:
         t0 = time.monotonic()
         try:
             sparql = build_sparql(indicator["code"])
-            resp = httpx.post(url, data={"query": sparql},
-                              headers={"Accept": "application/sparql-results+json"}, timeout=10.0)
+            resp = httpx.post(f"{url.rstrip('/')}/api/datastation/beantwoord",
+                              json={"sparql": sparql}, timeout=12.0)
             resp.raise_for_status()
             dur = int((time.monotonic() - t0) * 1000)
-            rows = resp.json().get("results", {}).get("bindings", [])
-            if not rows or "waarde" not in rows[0]:
-                return DatastationAntwoord("GEEN_DATA", None, "Datastation gaf geen waarde terug", dur)
-            return DatastationAntwoord("OK", float(rows[0]["waarde"]["value"]), duur_ms=dur)
+            d = resp.json()
+            status = d.get("status")
+            if status == "OK" and d.get("waarde") is not None:
+                return DatastationAntwoord("OK", float(d["waarde"]), duur_ms=dur)
+            if status == "GEEN_DATA":
+                return DatastationAntwoord("GEEN_DATA", None, d.get("toelichting") or "Geen data in datastation", dur)
+            return DatastationAntwoord("FOUT", None, d.get("toelichting") or "Datastation gaf geen waarde", dur)
         except Exception as exc:
             dur = int((time.monotonic() - t0) * 1000)
             return DatastationAntwoord("FOUT", None, f"Datastation onbereikbaar: {exc}", dur)

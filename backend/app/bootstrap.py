@@ -19,6 +19,7 @@ def init_db() -> None:
     _seed_platform_admin()
     _seed_demo_zorgaanbieders()
     _seed_capabilities()
+    _seed_twin_capabilities()
 
 
 def _ensure_columns() -> None:
@@ -94,10 +95,18 @@ def _seed_demo_zorgaanbieders() -> None:
     ]
     db = SessionLocal()
     try:
-        if db.query(Zorgaanbieder).count() > 0:
-            return
-        for naam, plaats, email in demo:
-            db.add(Zorgaanbieder(id=uuid.uuid4(), naam=naam, plaats=plaats, contact_email=email))
+        if db.query(Zorgaanbieder).count() == 0:
+            for naam, plaats, email in demo:
+                db.add(Zorgaanbieder(id=uuid.uuid4(), naam=naam, plaats=plaats, contact_email=email))
+        # Twin-aanbieder met echt datastation (idempotent — ook op bestaande DB)
+        twin_naam = "Twin Zorgaanbieder (datastation)"
+        twin = db.query(Zorgaanbieder).filter(Zorgaanbieder.naam == twin_naam).first()
+        twin_url = os.getenv("TWIN_DATASTATION_URL", "http://host.docker.internal:8017")
+        if not twin:
+            db.add(Zorgaanbieder(id=uuid.uuid4(), naam=twin_naam, plaats="Demo",
+                                 contact_email="twin@rhadix.nl", datastation_url=twin_url))
+        else:
+            twin.datastation_url = twin_url
         db.commit()
     finally:
         db.close()
@@ -135,6 +144,33 @@ def _seed_capabilities() -> None:
                     "software_leverancier": lev, "uitwisselprofiel": prof["key"],
                     "versie": prof.get("versie") or "1.0", "status": statuses[j % len(statuses)],
                     "laatst_bijgewerkt": "2026-02-01"})
-        apply_import(db, rows)
+        if rows:
+            apply_import(db, rows)
+    finally:
+        db.close()
+
+
+def _seed_twin_capabilities() -> None:
+    """Twin-aanbieder krijgt voor elk geladen profiel een productie-capability (idempotent, altijd)."""
+    from app.services import profiles as profiles_svc
+    from app.models.kik_models import AanbiederCapability, CapabilityStatus
+    profs = profiles_svc.list_profiles()
+    if not profs:
+        return
+    db = SessionLocal()
+    try:
+        twin = "Twin Zorgaanbieder (datastation)"
+        have = {c.uitwisselprofiel for c in db.query(AanbiederCapability).filter(AanbiederCapability.aanbieder_naam == twin).all()}
+        added = 0
+        for prof in profs:
+            if prof["key"] in have:
+                continue
+            db.add(AanbiederCapability(
+                id=uuid.uuid4(), aanbieder_id_type="kvk", aanbieder_id="99887766", aanbieder_naam=twin,
+                software_leverancier="Rhadix", uitwisselprofiel=prof["key"], versie=prof.get("versie") or "1.0",
+                status=CapabilityStatus.PRODUCTIE, laatst_bijgewerkt="2026-02-01"))
+            added += 1
+        if added:
+            db.commit()
     finally:
         db.close()
