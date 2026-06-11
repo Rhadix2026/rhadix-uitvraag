@@ -52,8 +52,8 @@ class Uitvraag(Base):
     id            = Column(GUID(), primary_key=True, default=uuid.uuid4)
     tenant_id     = Column(GUID(), nullable=False, index=True)   # de ketenpartij
     created_by    = Column(GUID(), nullable=True)
-    profiel_key   = Column(String(64), nullable=False)
-    profiel_label = Column(String(255), nullable=False)
+    profiel_key   = Column(String(255), nullable=False)
+    profiel_label = Column(String(512), nullable=False)
     status         = Column(Enum(UitvraagStatus), nullable=False, default=UitvraagStatus.VOLTOOID)
     doorlooptijd_ms = Column(Integer, nullable=True)   # max latency over de antwoorden (parallel model)
     created_at     = Column(DateTime(timezone=True), server_default=func.now())
@@ -71,7 +71,7 @@ class Antwoord(Base):
     zorgaanbieder_id  = Column(GUID(), ForeignKey("zorgaanbieders.id"), nullable=True)
     zorgaanbieder_naam= Column(String(255), nullable=False)
     indicator_code    = Column(String(64), nullable=False)
-    indicator_label   = Column(String(255), nullable=False)
+    indicator_label   = Column(String(512), nullable=False)
     eenheid           = Column(String(32), nullable=True)
     waarde            = Column(Float, nullable=True)
     status            = Column(Enum(AntwoordStatus), nullable=False, default=AntwoordStatus.OK)
@@ -103,7 +103,7 @@ class AanbiederCapability(Base):
     aanbieder_id        = Column(String(32), nullable=False, index=True)
     aanbieder_naam      = Column(String(255), nullable=False, index=True)
     software_leverancier= Column(String(255), nullable=True)
-    uitwisselprofiel    = Column(String(64), nullable=False, index=True)   # profiel-key
+    uitwisselprofiel    = Column(String(255), nullable=False, index=True)  # profiel-key
     versie              = Column(String(32), nullable=False)
     status              = Column(Enum(CapabilityStatus), nullable=False)
     laatst_bijgewerkt   = Column(String(10), nullable=True)        # YYYY-MM-DD

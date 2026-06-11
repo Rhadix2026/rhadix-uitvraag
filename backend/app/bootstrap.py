@@ -41,6 +41,22 @@ def _ensure_columns() -> None:
                 if name not in existing:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
 
+    # Verbreed bestaande kolommen (alleen Postgres dwingt lengte af; SQLite negeert dit)
+    if engine.dialect.name == "postgresql":
+        widen = [
+            ("uitvragen", "profiel_key", "VARCHAR(255)"),
+            ("uitvragen", "profiel_label", "VARCHAR(512)"),
+            ("antwoorden", "indicator_label", "VARCHAR(512)"),
+            ("aanbieder_capabilities", "uitwisselprofiel", "VARCHAR(255)"),
+        ]
+        with engine.begin() as conn:
+            for table, col, typ in widen:
+                if insp.has_table(table):
+                    try:
+                        conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN {col} TYPE {typ}"))
+                    except Exception:
+                        pass
+
 
 def _seed_platform_admin() -> None:
     """Maak (eenmalig) een platform-organisatie + platform-admin uit env-variabelen."""
