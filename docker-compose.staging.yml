@@ -62,7 +62,7 @@ services:
       FUSEKI_USER:        admin
       FUSEKI_PASSWORD:    ${STAGING_FUSEKI_PASSWORD:-kik-staging-admin}
       RHADIX_PROFILES_URL: ${STAGING_PROFILES_URL:-}
-      VALIDATION_API_URL: ${VALIDATION_API_URL:-http://host.docker.internal:8011}
+      VALIDATION_API_URL: ${VALIDATION_API_URL:-https://app.rhadix.nl}
     ports:
       - "${STAGING_BACKEND_PORT:-8013}:8000"
 
