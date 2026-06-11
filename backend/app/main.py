@@ -12,10 +12,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.bootstrap import init_db
-from app.routers import health, meta, admin, org, profiles, zorgaanbieders, uitvragen
+from app.routers import health, meta, admin, org, profiles, zorgaanbieders, uitvragen, capabilities
 from app.auth.router import router as auth_router
 
-APP_VERSION = "0.4.0"
+APP_VERSION = "0.5.0"
 
 app = FastAPI(title="Rhadix Uitvraag API", version=APP_VERSION)
 
@@ -38,6 +38,7 @@ app.include_router(org.router, prefix="/api/org")
 app.include_router(profiles.router, prefix="/api")
 app.include_router(zorgaanbieders.router, prefix="/api")
 app.include_router(uitvragen.router, prefix="/api")
+app.include_router(capabilities.router, prefix="/api")
 
 
 @app.get("/api")

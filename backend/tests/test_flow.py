@@ -92,3 +92,32 @@ def test_stats_endpoint(client, auth):
     assert len(s["per_zorgaanbieder"]) >= 1
     # 'stats' mag niet als uitvraag-id worden gelezen
     assert client.get("/api/uitvragen/stats", headers=auth).status_code == 200
+
+
+def test_capabilities_overzicht(client, auth):
+    d = client.get("/api/capabilities/overzicht", headers=auth).json()
+    assert d["totaal"] >= 10
+    assert d["status_telling"].get("productie", 0) >= 1
+    assert len(d["per_profiel"]) >= 1 and len(d["per_aanbieder"]) >= 1
+
+
+def test_capabilities_filter_productie(client, auth):
+    prod = client.get("/api/capabilities/profiel/igj-toezicht", headers=auth).json()
+    assert all(a["status"] == "productie" for a in prod["aanbieders"])
+    incl = client.get("/api/capabilities/profiel/igj-toezicht?inclusief_niet_productie=true", headers=auth).json()
+    assert len(incl["aanbieders"]) >= len(prod["aanbieders"])
+
+
+def test_capabilities_import_csv(client, auth):
+    goed = ("aanbieder_id_type,aanbieder_id,aanbieder_naam,software_leverancier,uitwisselprofiel,versie,status,laatst_bijgewerkt\n"
+            "kvk,30112233,Zorggroep De Linden,Nedap,igj-toezicht,1.0,productie,2026-03-01\n"
+            "kvk,98,Foute BV,X,igj-toezicht,1.0,onzin,2026-03-01\n")
+    r = client.post("/api/capabilities/import", headers=auth, files={"file": ("up.csv", goed, "text/csv")})
+    assert r.status_code == 200, r.text
+    s = r.json()
+    assert s["verwerkt"] == 1 and s["afgekeurd"] == 1
+    # formaatfout -> hele bestand afgekeurd (422)
+    bad = client.post("/api/capabilities/import", headers=auth, files={"file": ("x.csv", "kolomA,kolomB\n1,2", "text/csv")})
+    assert bad.status_code == 422
+    # zonder token -> 401
+    assert client.post("/api/capabilities/import", files={"file": ("x.csv", "a,b\n1,2", "text/csv")}).status_code == 401

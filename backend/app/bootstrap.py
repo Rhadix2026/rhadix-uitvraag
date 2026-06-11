@@ -9,7 +9,7 @@ from sqlalchemy import inspect, text
 from app.database import Base, SessionLocal, engine
 from app.models.auth_models import Tenant, User, UserRole
 from app.models import kik_models  # noqa: F401  (registreert KIK-tabellen)
-from app.models.kik_models import Zorgaanbieder
+from app.models.kik_models import Zorgaanbieder, AanbiederCapability
 from app.auth.security import hash_password
 
 
@@ -18,6 +18,7 @@ def init_db() -> None:
     _ensure_columns()
     _seed_platform_admin()
     _seed_demo_zorgaanbieders()
+    _seed_capabilities()
 
 
 def _ensure_columns() -> None:
@@ -82,5 +83,19 @@ def _seed_demo_zorgaanbieders() -> None:
         for naam, plaats, email in demo:
             db.add(Zorgaanbieder(id=uuid.uuid4(), naam=naam, plaats=plaats, contact_email=email))
         db.commit()
+    finally:
+        db.close()
+
+
+def _seed_capabilities() -> None:
+    """Seed de uitwisselprofiel-registry uit de demo-CSV (eenmalig)."""
+    from app.services import capabilities as caps_svc
+    from app.routers.capabilities import apply_import
+    db = SessionLocal()
+    try:
+        if db.query(AanbiederCapability).count() > 0:
+            return
+        records, _ = caps_svc.parse_csv(caps_svc.SEED_CSV)
+        apply_import(db, records)
     finally:
         db.close()

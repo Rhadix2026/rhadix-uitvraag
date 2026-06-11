@@ -8,6 +8,7 @@ import QueryFlow      from './pages/QueryFlow'
 import Zorgaanbieders from './pages/Zorgaanbieders'
 import Results        from './pages/Results'
 import Analyse        from './pages/Analyse'
+import Dekking        from './pages/Dekking'
 import Gebruikersbeheer from './pages/Gebruikersbeheer'
 import Organisaties   from './pages/Organisaties'
 import NotFound       from './pages/NotFound'
@@ -57,6 +58,7 @@ export default function App() {
     { to: '/zorgaanbieders', label: 'Zorgaanbieders' },
     { to: '/resultaten',    label: 'Resultaten' },
     { to: '/analyse',       label: 'Analyse' },
+    { to: '/dekking',       label: 'Dekking' },
     ...(isAdmin    ? [{ to: '/gebruikers',   label: 'Gebruikers' }] : []),
     ...(isPlatform ? [{ to: '/organisaties', label: 'Organisaties' }] : []),
   ]
@@ -71,6 +73,7 @@ export default function App() {
         <Route path="/zorgaanbieders" element={<Zorgaanbieders />} />
         <Route path="/resultaten" element={<Results />} />
         <Route path="/analyse" element={<Analyse />} />
+        <Route path="/dekking" element={<Dekking authUser={authUser} />} />
         <Route path="/gebruikers" element={isAdmin ? <Gebruikersbeheer authUser={authUser} /> : <Navigate to="/" replace />} />
         <Route path="/organisaties" element={isPlatform ? <Organisaties /> : <Navigate to="/" replace />} />
         <Route path="/404" element={<NotFound />} />

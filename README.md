@@ -3,11 +3,12 @@
 De afnemer-applicatie binnen het KIK-V-stelsel (opvolger van de ZIN KIK-V Starter), in de **Rhadix-stack**
 (React/Vite · FastAPI · PostgreSQL · Fuseki · Docker), met de Rhadix huisstijl.
 
-> Status: **mijlpaal 5 — analyse & monitor**. Naast de shell (m1), het multi-tenant
-> gebruikersbeheer (m2) en de opvraag-flow (m3) staat nu de afnemer-app als
-> **Rhadix Uitvraag** (m4) met een **Analyse/Monitor**-dashboard (m5): volumes,
-> response-ratio en doorlooptijd per uitwisselprofiel en zorgaanbieder.
-> Zie [ARCHITECTUUR.md](ARCHITECTUUR.md) voor de positionering binnen KIK-V.
+> Status: **mijlpaal 6 — profieldekking**. Naast de shell (m1), gebruikersbeheer (m2),
+> de opvraag-flow (m3), de hernoeming naar **Rhadix Uitvraag** (m4) en het
+> **Analyse/Monitor**-dashboard (m5) is er nu een **uitwisselprofiel-registry** (m6):
+> per zorgaanbieder welke profielen + versie + status zijn geïmplementeerd
+> (CSV-import door beheer), met filtering in Opvragen (alleen 'productie') en een
+> doorzoekbaar dekkings-inzichtsscherm. Zie [ARCHITECTUUR.md](ARCHITECTUUR.md).
 
 ## Stack
 | Laag | Technologie |
