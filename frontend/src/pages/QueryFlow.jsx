@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Page, PageTitle, Card, BtnPrimary, BtnGhost } from '../components/UI'
-import { listProfielen, getProfiel, listZorgaanbieders, createUitvraag } from '../services/api'
+import { Page, PageTitle, Card, BtnPrimary, BtnGhost, StatusPill } from '../components/UI'
+import { listProfielen, getProfiel, getAanbiedersVoorProfiel, createUitvraag } from '../services/api'
 
 const STAPPEN = ['Uitwisselprofiel', 'Indicatoren', 'Zorgaanbieders', 'Versturen']
 
@@ -51,7 +51,9 @@ export default function QueryFlow() {
   const navigate = useNavigate()
   const [stap, setStap] = useState(0)
   const [profielen, setProfielen] = useState([])
-  const [aanbieders, setAanbieders] = useState([])
+  const [capAanbieders, setCapAanbieders] = useState([])
+  const [inclNietProd, setInclNietProd] = useState(false)
+  const [capLaden, setCapLaden] = useState(false)
   const [profielKey, setProfielKey] = useState(null)
   const [detail, setDetail] = useState(null)   // volledig uitwisselprofiel
   const [gekozenInd, setGekozenInd] = useState([])
@@ -62,8 +64,17 @@ export default function QueryFlow() {
 
   useEffect(() => {
     listProfielen().then(setProfielen).catch(e => setFout(e.message))
-    listZorgaanbieders().then(setAanbieders).catch(e => setFout(e.message))
   }, [])
+
+  // Capabilities laden zodra een profiel is gekozen (of de toggle wijzigt)
+  useEffect(() => {
+    if (!profielKey) return
+    setCapLaden(true)
+    getAanbiedersVoorProfiel(profielKey, inclNietProd)
+      .then(d => { setCapAanbieders(d.aanbieders); setGekozenZa([]) })
+      .catch(e => setFout(e.message))
+      .finally(() => setCapLaden(false))
+  }, [profielKey, inclNietProd])
 
   async function kiesProfiel(key) {
     setProfielKey(key); setFout(null)
@@ -177,22 +188,49 @@ export default function QueryFlow() {
 
       {stap === 2 && (
         <Card>
-          <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 14 }}>Kies één of meer geregistreerde zorgaanbieders.</div>
-          {aanbieders.length === 0 && <div style={{ fontSize: 14, color: 'var(--amber)', marginBottom: 14 }}>Nog geen zorgaanbieders geregistreerd. Voeg ze toe via de pagina Zorgaanbieders.</div>}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
-            {aanbieders.map(z => {
-              const checked = gekozenZa.includes(z.id)
-              return (
-                <div key={z.id} onClick={() => toggle(gekozenZa, setGekozenZa, z.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', cursor: 'pointer', borderRadius: 'var(--radius)', border: `1.5px solid ${checked ? 'var(--blue)' : 'var(--border)'}`, background: checked ? 'var(--blue-light)' : '#fff' }}>
-                  <span style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: '#fff', background: checked ? 'var(--blue)' : '#fff', border: `1.5px solid ${checked ? 'var(--blue)' : 'var(--border2)'}` }}>{checked ? '✓' : ''}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{z.naam}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text3)' }}>{[z.plaats, z.heeft_datastation ? 'eigen datastation' : 'gesimuleerd datastation'].filter(Boolean).join(' · ')}</div>
-                  </div>
-                </div>
-              )
-            })}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 13, color: 'var(--text3)', maxWidth: 520 }}>
+              Alleen aanbieders die <b>{profiel?.label}</b> hebben geïmplementeerd. Standaard tonen we
+              alleen status <b>productie</b> — de overige worden weggefilterd om uitvragen naar
+              niet-compatibele aanbieders te voorkomen.
+            </div>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text2)', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+              <input type="checkbox" checked={inclNietProd} onChange={e => setInclNietProd(e.target.checked)} />
+              Ook test/implementatie tonen
+            </label>
           </div>
+
+          {capLaden ? (
+            <div style={{ fontSize: 14, color: 'var(--text3)', padding: '8px 0' }}>Aanbieders laden…</div>
+          ) : capAanbieders.length === 0 ? (
+            <div style={{ fontSize: 14, color: 'var(--amber)', marginBottom: 14 }}>
+              Geen aanbieders met dit profiel{inclNietProd ? '' : ' in productie'}. {inclNietProd ? 'Mogelijk is het profiel nergens geïmplementeerd.' : 'Zet de schakelaar aan om test/implementatie te zien.'}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+              {capAanbieders.map(a => {
+                const id = a.zorgaanbieder_id
+                const selectbaar = a.geregistreerd && !!id
+                const checked = selectbaar && gekozenZa.includes(id)
+                return (
+                  <div key={a.aanbieder_naam + a.versie}
+                    onClick={() => selectbaar && toggle(gekozenZa, setGekozenZa, id)}
+                    title={selectbaar ? '' : 'Niet geregistreerd in dit platform — wel in de registry'}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                      cursor: selectbaar ? 'pointer' : 'not-allowed', opacity: selectbaar ? 1 : 0.55,
+                      borderRadius: 'var(--radius)', border: `1.5px solid ${checked ? 'var(--blue)' : 'var(--border)'}`,
+                      background: checked ? 'var(--blue-light)' : '#fff' }}>
+                    <span style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: '#fff', background: checked ? 'var(--blue)' : '#fff', border: `1.5px solid ${checked ? 'var(--blue)' : 'var(--border2)'}` }}>{checked ? '✓' : ''}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{a.aanbieder_naam}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text3)' }}>{[a.software_leverancier, `versie ${a.versie}`, selectbaar ? null : 'niet geregistreerd'].filter(Boolean).join(' · ')}</div>
+                    </div>
+                    <StatusPill status={a.status} />
+                  </div>
+                )
+              })}
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 10 }}>
             <BtnGhost onClick={() => setStap(1)}>← Terug</BtnGhost>
             <BtnPrimary disabled={!gekozenZa.length} onClick={() => setStap(3)}>Verder ({gekozenZa.length})</BtnPrimary>

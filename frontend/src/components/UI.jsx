@@ -156,3 +156,15 @@ export function Modal({ title, children, onClose }) {
     </div>
   )
 }
+
+// ─── Status-pil voor uitwisselprofiel-implementatie ──────────────────────────
+export function StatusPill({ status }) {
+  const map = {
+    productie:     { bg: 'var(--green-light)', fg: 'var(--green)', label: 'Productie' },
+    test:          { bg: 'var(--amber-light)', fg: 'var(--amber)', label: 'Test' },
+    implementatie: { bg: 'var(--blue-light)',  fg: 'var(--blue)',  label: 'Implementatie' },
+    uitgefaseerd:  { bg: 'var(--bg)',          fg: 'var(--text3)', label: 'Uitgefaseerd' },
+  }
+  const c = map[status] || map.uitgefaseerd
+  return <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 99, background: c.bg, color: c.fg }}>{c.label}</span>
+}

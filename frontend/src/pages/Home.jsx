@@ -23,6 +23,7 @@ export default function Home({ authUser }) {
     ...(isPlatform ? [{ to: '/organisaties', icon: '🏢', title: 'Organisaties', desc: 'Organisaties op het platform beheren en beheerders aanmaken.', status: 'Beschikbaar' }] : []),
     { to: '/resultaten', icon: '📊', title: 'Resultaten', desc: 'Indicatorresultaten bekijken, vergelijken en exporteren (CSV/Excel/API).', status: 'Beschikbaar' },
     { to: '/analyse', icon: '📈', title: 'Analyse & Monitor', desc: 'Volumes, response-ratio en doorlooptijd per profiel en zorgaanbieder.', status: 'Beschikbaar' },
+    { to: '/dekking', icon: '🗂️', title: 'Dekking', desc: 'Welke aanbieders welke uitwisselprofielen (en versie/status) hebben geïmplementeerd.', status: 'Beschikbaar' },
   ]
 
   return (

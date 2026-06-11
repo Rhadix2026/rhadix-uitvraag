@@ -11,13 +11,14 @@ def meta():
     return {
         "name": "Rhadix Uitvraag",
         "edition": "KIK-V",
-        "version": "0.4.0",
+        "version": "0.5.0",
         "environment": os.getenv("KIK_ENV", "development"),
         "modules": [
             {"key": "query-flow", "label": "Opvragen", "status": "available"},
             {"key": "zorgaanbieders", "label": "Zorgaanbieders", "status": "available"},
             {"key": "results", "label": "Resultaten", "status": "available"},
             {"key": "analyse", "label": "Analyse & Monitor", "status": "available"},
+            {"key": "dekking", "label": "Uitwisselprofiel-dekking", "status": "available"},
             {"key": "user-mgmt", "label": "Gebruikersbeheer", "status": "available"},
         ],
     }

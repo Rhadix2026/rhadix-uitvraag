@@ -76,3 +76,18 @@ export async function downloadUitvraag(id, fmt = 'csv') {
 
 // ── Analyse / Monitor ──
 export const getUitvraagStats = () => req('GET', '/uitvragen/stats')
+
+// ── Capabilities (geïmplementeerde uitwisselprofielen) ──
+export const getCapabilitiesOverzicht = () => req('GET', '/capabilities/overzicht')
+export const getAanbiedersVoorProfiel = (key, inclusiefNietProductie = false) =>
+  req('GET', `/capabilities/profiel/${key}?inclusief_niet_productie=${inclusiefNietProductie}`)
+
+export async function importCapabilities(file) {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await fetch(`${BASE}/capabilities/import`, { method: 'POST', headers: authHeaders(), body: fd })
+  if (res.status === 401) { clearAuthToken(); window.dispatchEvent(new CustomEvent('rhadix:unauthorized')) }
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.detail || `Import mislukt (${res.status})`)
+  return data
+}

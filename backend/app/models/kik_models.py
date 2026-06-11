@@ -81,3 +81,30 @@ class Antwoord(Base):
 
     uitvraag      = relationship("Uitvraag", back_populates="antwoorden")
     zorgaanbieder = relationship("Zorgaanbieder", back_populates="antwoorden")
+
+
+class CapabilityStatus(str, enum.Enum):
+    PRODUCTIE     = "productie"
+    TEST          = "test"
+    IMPLEMENTATIE = "implementatie"
+    UITGEFASEERD  = "uitgefaseerd"
+
+
+class AanbiederCapability(Base):
+    """Welk uitwisselprofiel (+versie+status) een zorgaanbieder heeft geïmplementeerd.
+
+    Gevoed via een CSV (single source of truth, beheerd door KIK-V Beheer) en in
+    de app read-only. Vol-refresh bij import. Conform RFC ZIN-VCO.
+    """
+    __tablename__ = "aanbieder_capabilities"
+
+    id                  = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    aanbieder_id_type   = Column(String(8), nullable=False)        # kvk | agb
+    aanbieder_id        = Column(String(32), nullable=False, index=True)
+    aanbieder_naam      = Column(String(255), nullable=False, index=True)
+    software_leverancier= Column(String(255), nullable=True)
+    uitwisselprofiel    = Column(String(64), nullable=False, index=True)   # profiel-key
+    versie              = Column(String(32), nullable=False)
+    status              = Column(Enum(CapabilityStatus), nullable=False)
+    laatst_bijgewerkt   = Column(String(10), nullable=True)        # YYYY-MM-DD
+    imported_at         = Column(DateTime(timezone=True), server_default=func.now())
