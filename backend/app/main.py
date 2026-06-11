@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.bootstrap import init_db
-from app.routers import health, meta, admin, org, profiles, zorgaanbieders, uitvragen, capabilities
+from app.routers import health, meta, admin, org, profiles, zorgaanbieders, uitvragen, capabilities, external
 from app.auth.router import router as auth_router
 
 APP_VERSION = "0.6.0"
@@ -39,6 +39,7 @@ app.include_router(profiles.router, prefix="/api")
 app.include_router(zorgaanbieders.router, prefix="/api")
 app.include_router(uitvragen.router, prefix="/api")
 app.include_router(capabilities.router, prefix="/api")
+app.include_router(external.router, prefix="/api")
 
 
 @app.get("/api")

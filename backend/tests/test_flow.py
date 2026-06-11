@@ -129,3 +129,35 @@ def test_profielen_refresh_admin(client, auth):
     assert "bron" in r.json() and r.json()["profielen"] >= 1
     # zonder token -> 401
     assert client.post("/api/profielen/refresh").status_code == 401
+
+
+def test_external_kikstarter_api(client, auth):
+    # OAuth2 password-grant token
+    r = client.post("/api/external/token", data={
+        "grant_type": "password", "username": "admin@kik-starter.nl",
+        "password": "KikStarter2026!", "client_id": "ksapi"})
+    assert r.status_code == 200, r.text
+    xtok = r.json()["access_token"]
+    XH = {"Authorization": f"Bearer {xtok}"}
+
+    # maak een uitvraag voor Zorggroep De Linden (kvk 30112233 via registry)
+    profs = client.get("/api/profielen", headers=auth).json()
+    key = profs[0]["key"]
+    codes = [i["code"] for i in client.get(f"/api/profielen/{key}", headers=auth).json()["indicatoren"][:2]]
+    za = client.get("/api/zorgaanbieders", headers=auth).json()
+    linden = [z["id"] for z in za if z["naam"] == "Zorggroep De Linden"][0]
+    client.post("/api/uitvragen", headers=auth,
+                json={"profiel_key": key, "indicator_codes": codes, "zorgaanbieder_ids": [linden]})
+
+    # vragen ophalen per KVK
+    v = client.get("/api/external/vragen?aanbiederIdType=kvk&aanbiederId=30112233", headers=XH).json()
+    assert v["aantal"] >= 1
+    qid = v["vragen"][0]["query_id"]
+
+    # resultaten ophalen per query_id
+    r2 = client.get(f"/api/external/vraag/{qid}/resultaten", headers=XH).json()
+    assert r2["aantal"] >= 1 and "waarde" in r2["resultaten"][0]
+
+    # foutpaden
+    assert client.post("/api/external/token", data={"grant_type": "x", "username": "a", "password": "b"}).status_code == 400
+    assert client.get("/api/external/vragen?aanbiederId=30112233").status_code == 401
