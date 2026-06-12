@@ -36,6 +36,21 @@ export default function Results() {
     else setActief(null)
   }, [gekozenId])
 
+  // Auto-poll: zolang de uitvraag loopt, haal periodiek de antwoorden op
+  // (verschijnen vanzelf zodra de zorgaanbieder ze accordeert).
+  useEffect(() => {
+    if (!actief || actief.status !== 'LOPEND') return
+    let stop = false
+    const t = setInterval(async () => {
+      if (stop) return
+      try {
+        const d = await ophalenAntwoorden(actief.id)
+        if (!stop) setActief(d)
+      } catch { /* stil — volgende tick */ }
+    }, 4000)
+    return () => { stop = true; clearInterval(t) }
+  }, [actief?.id, actief?.status])
+
   async function ophalen() {
     setBezig(true); setFout(null)
     try { setActief(await ophalenAntwoorden(actief.id)) }
@@ -102,7 +117,7 @@ export default function Results() {
           {openstaand > 0 && (
             <Card style={{ marginBottom: 16, background: 'var(--blue-light, #e0edff)', border: '1px solid var(--blue-mid, #93c5fd)' }}>
               <div style={{ fontSize: 13, color: 'var(--blue-dark, #1d4ed8)' }}>
-                ⏳ <b>{openstaand}</b> van {actief.antwoorden.length} vragen staan nog uit bij het datastation van de zorgaanbieder ({binnen} binnen). Zodra de zorgaanbieder accordeert, verschijnt het antwoord hier na “Antwoorden ophalen”.
+                ⏳ <b>{openstaand}</b> van {actief.antwoorden.length} vragen staan nog uit bij het datastation van de zorgaanbieder ({binnen} binnen). Zodra de zorgaanbieder accordeert, verschijnt het antwoord hier — dit ververst automatisch.
               </div>
             </Card>
           )}
