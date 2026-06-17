@@ -23,7 +23,7 @@ from app.database import get_db
 from app.models.auth_models import User
 from app.models.kik_models import (Antwoord, AntwoordStatus, Uitvraag, UitvraagStatus, Zorgaanbieder)
 from app.services import profiles as profiles_svc
-from app.services.datastation import vraag_indicator
+from app.services.datastation import vraag_indicator, dien_in, haal_resultaat
 
 router = APIRouter(tags=["uitvragen"])
 
@@ -46,12 +46,16 @@ def _antwoord_dict(a: Antwoord) -> dict:
             "zorgaanbieder": a.zorgaanbieder_naam, "indicator_code": a.indicator_code,
             "indicator": a.indicator_label, "eenheid": a.eenheid, "waarde": a.waarde,
             "status": a.status.value, "toelichting": a.toelichting, "duur_ms": a.duur_ms,
+            "query_id": a.query_id, "wacht": a.status == AntwoordStatus.UITGEZET,
+            "async": bool(a.datastation_url),
             "computed_at": a.computed_at.isoformat() if a.computed_at else None}
 
 
 def _uitvraag_dict(u: Uitvraag, with_antwoorden=False) -> dict:
+    open_count = sum(1 for a in u.antwoorden if a.status == AntwoordStatus.UITGEZET)
     d = {"id": str(u.id), "profiel_key": u.profiel_key, "profiel_label": u.profiel_label,
          "status": u.status.value, "aantal_antwoorden": len(u.antwoorden),
+         "openstaand": open_count,
          "doorlooptijd_ms": u.doorlooptijd_ms,
          "created_at": u.created_at.isoformat() if u.created_at else None}
     if with_antwoorden:
@@ -81,29 +85,54 @@ def create_uitvraag(body: CreateUitvraag, db: Session = Depends(get_db),
                         profiel_key=prof["key"], profiel_label=prof["label"])
     db.add(uitvraag); db.flush()
 
-    n_ok = n_total = 0
+    n_ok = n_total = n_uit = 0
     duren = []
+    afnemer = getattr(current, "email", None)
     for z in aanbieders:
         for ind in indicatoren:
-            res = vraag_indicator(z, ind)
             n_total += 1
-            if res.status == "OK":
-                n_ok += 1
-            if res.duur_ms is not None:
-                duren.append(res.duur_ms)
-            db.add(Antwoord(
-                id=uuid.uuid4(), uitvraag_id=uitvraag.id, zorgaanbieder_id=z.id,
-                zorgaanbieder_naam=z.naam, indicator_code=ind["code"],
-                indicator_label=ind["label"], eenheid=ind.get("eenheid"),
-                waarde=res.waarde, status=AntwoordStatus(res.status),
-                toelichting=res.toelichting, duur_ms=res.duur_ms))
+            if getattr(z, "datastation_url", None):
+                # Federatief async: zet de gevalideerde vraag uit bij het datastation.
+                r = dien_in(z, ind, afnemer=afnemer)
+                if r.get("duur_ms") is not None:
+                    duren.append(r["duur_ms"])
+                if r.get("status") == "UITGEZET" and r.get("query_id"):
+                    n_uit += 1
+                    db.add(Antwoord(
+                        id=uuid.uuid4(), uitvraag_id=uitvraag.id, zorgaanbieder_id=z.id,
+                        zorgaanbieder_naam=z.naam, indicator_code=ind["code"],
+                        indicator_label=ind["label"], eenheid=ind.get("eenheid"),
+                        waarde=None, status=AntwoordStatus.UITGEZET,
+                        toelichting=r.get("toelichting"), duur_ms=r.get("duur_ms"),
+                        query_id=r.get("query_id"), datastation_url=r.get("url")))
+                else:
+                    db.add(Antwoord(
+                        id=uuid.uuid4(), uitvraag_id=uitvraag.id, zorgaanbieder_id=z.id,
+                        zorgaanbieder_naam=z.naam, indicator_code=ind["code"],
+                        indicator_label=ind["label"], eenheid=ind.get("eenheid"),
+                        waarde=None, status=AntwoordStatus.FOUT,
+                        toelichting=r.get("toelichting"), duur_ms=r.get("duur_ms"),
+                        datastation_url=r.get("url")))
+            else:
+                res = vraag_indicator(z, ind)
+                if res.status == "OK":
+                    n_ok += 1
+                if res.duur_ms is not None:
+                    duren.append(res.duur_ms)
+                db.add(Antwoord(
+                    id=uuid.uuid4(), uitvraag_id=uitvraag.id, zorgaanbieder_id=z.id,
+                    zorgaanbieder_naam=z.naam, indicator_code=ind["code"],
+                    indicator_label=ind["label"], eenheid=ind.get("eenheid"),
+                    waarde=res.waarde, status=AntwoordStatus(res.status),
+                    toelichting=res.toelichting, duur_ms=res.duur_ms))
 
-    # doorlooptijd = langste datastation-call (datastations parallel bevraagd)
     uitvraag.doorlooptijd_ms = max(duren) if duren else None
-
-    uitvraag.status = (UitvraagStatus.VOLTOOID if n_ok == n_total
-                       else UitvraagStatus.MISLUKT if n_ok == 0
-                       else UitvraagStatus.GEDEELTELIJK)
+    if n_uit > 0:
+        uitvraag.status = UitvraagStatus.LOPEND
+    else:
+        uitvraag.status = (UitvraagStatus.VOLTOOID if n_ok == n_total
+                           else UitvraagStatus.MISLUKT if n_ok == 0
+                           else UitvraagStatus.GEDEELTELIJK)
     db.commit(); db.refresh(uitvraag)
     return _uitvraag_dict(uitvraag, with_antwoorden=True)
 
@@ -194,6 +223,45 @@ def _get_owned(uitvraag_id: str, db: Session, current: User) -> Uitvraag:
 @router.get("/uitvragen/{uitvraag_id}")
 def get_uitvraag(uitvraag_id: str, db: Session = Depends(get_db), current: User = Depends(get_current_user)):
     return _uitvraag_dict(_get_owned(uitvraag_id, db, current), with_antwoorden=True)
+
+
+@router.post("/uitvragen/{uitvraag_id}/ophalen")
+def ophalen_antwoorden(uitvraag_id: str, db: Session = Depends(get_db),
+                       current: User = Depends(get_current_user)):
+    """Haal de antwoorden op van uitgezette (async) vragen bij de datastations.
+    Een antwoord komt pas binnen nadat de zorgaanbieder het heeft geaccordeerd."""
+    u = _get_owned(uitvraag_id, db, current)
+    bijgewerkt = 0
+    for a in u.antwoorden:
+        if a.status != AntwoordStatus.UITGEZET or not a.query_id or not a.datastation_url:
+            continue
+        r = haal_resultaat(a.datastation_url, a.query_id)
+        st = r.get("status")
+        if st == "GEREED":
+            a.waarde = r.get("waarde")
+            a.status = AntwoordStatus.OK
+            a.toelichting = (("Handmatig vastgesteld" if r.get("handmatig") else "Geaccordeerd")
+                             + " door zorgaanbieder" + (f": {r.get('toelichting')}" if r.get("toelichting") else ""))
+            bijgewerkt += 1
+        elif st == "AFGEWEZEN":
+            a.status = AntwoordStatus.AFGEWEZEN
+            a.toelichting = r.get("toelichting") or "Afgewezen door zorgaanbieder"
+            bijgewerkt += 1
+        # IN_BEHANDELING → blijft UITGEZET
+
+    nog_open = sum(1 for a in u.antwoorden if a.status == AntwoordStatus.UITGEZET)
+    n_ok = sum(1 for a in u.antwoorden if a.status == AntwoordStatus.OK)
+    n_total = len(u.antwoorden)
+    if nog_open:
+        u.status = UitvraagStatus.LOPEND
+    else:
+        u.status = (UitvraagStatus.VOLTOOID if n_ok == n_total
+                    else UitvraagStatus.MISLUKT if n_ok == 0
+                    else UitvraagStatus.GEDEELTELIJK)
+    db.commit(); db.refresh(u)
+    d = _uitvraag_dict(u, with_antwoorden=True)
+    d["bijgewerkt"] = bijgewerkt
+    return d
 
 
 def _rows_for_export(u: Uitvraag):

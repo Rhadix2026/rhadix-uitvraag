@@ -11,7 +11,15 @@ export function Nav({ authUser, onLogout, links = [] }) {
       justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100,
       boxShadow: '0 2px 12px rgba(0,0,0,.25)',
     }}>
-      <UitvraagLogo onClick={() => navigate('/')} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <UitvraagLogo onClick={() => navigate('/')} />
+        <button onClick={() => navigate(-1)} title="Terug" style={{
+          background: 'rgba(255,255,255,.22)', border: '1.5px solid rgba(255,255,255,.7)',
+          borderRadius: 'var(--radius)', padding: '5px 14px', cursor: 'pointer',
+          fontSize: 13, color: '#fff', fontFamily: 'var(--font)', fontWeight: 700,
+          letterSpacing: '.03em', display: 'flex', alignItems: 'center', gap: 4,
+        }}>← Terug</button>
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         {links.map(l => (
           <Link key={l.to} to={l.to} style={_navBtn}>{l.label}</Link>

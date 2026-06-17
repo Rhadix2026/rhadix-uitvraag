@@ -22,12 +22,15 @@ class AntwoordStatus(str, enum.Enum):
     OK        = "OK"
     GEEN_DATA = "GEEN_DATA"
     FOUT      = "FOUT"
+    UITGEZET  = "UITGEZET"    # async: vraag staat bij het datastation, wacht op beoordeling
+    AFGEWEZEN = "AFGEWEZEN"   # zorgaanbieder beantwoordt deze vraag niet
 
 
 class UitvraagStatus(str, enum.Enum):
     VOLTOOID  = "VOLTOOID"
     GEDEELTELIJK = "GEDEELTELIJK"
     MISLUKT   = "MISLUKT"
+    LOPEND    = "LOPEND"      # er staan nog vragen uit bij datastations
 
 
 class Zorgaanbieder(Base):
@@ -40,6 +43,36 @@ class Zorgaanbieder(Base):
     plaats          = Column(String(128), nullable=True)
     contact_email   = Column(String(255), nullable=True)
     datastation_url = Column(String(512), nullable=True)  # SPARQL-endpoint; leeg = simulatie
+
+    # ── Verrijkte profielvelden (o.a. uit de KIK-V zorgaanbieders-export) ──
+    heeft_credential     = Column(String(8),   nullable=True)   # Ja/Nee (Verifiable Credential)
+    straatnaam           = Column(String(255), nullable=True)
+    huisnummer           = Column(String(32),  nullable=True)
+    postcode             = Column(String(16),  nullable=True)
+    gemeente             = Column(String(128), nullable=True)
+    samenwerkingsverband = Column(String(255), nullable=True)
+    doelgroepen          = Column(Text,        nullable=True)
+    sectoren             = Column(Text,        nullable=True)
+    zorgkantoren         = Column(Text,        nullable=True)
+    concessiehouders     = Column(Text,        nullable=True)
+    contact_voornaam     = Column(String(128), nullable=True)
+    contact_achternaam   = Column(String(128), nullable=True)
+    contact_telefoon     = Column(String(64),  nullable=True)
+    contact_functie      = Column(String(255), nullable=True)
+    fte                  = Column(Float,       nullable=True)
+    locaties             = Column(Integer,     nullable=True)
+    bedden               = Column(Integer,     nullable=True)
+    daas_leverancier     = Column(String(255), nullable=True)
+    implementatie_consultant = Column(String(255), nullable=True)
+    zelfscan_retour      = Column(String(255), nullable=True)
+    intentieverklaring   = Column(String(255), nullable=True)
+    contract_datastation = Column(String(255), nullable=True)
+    aangesloten_test     = Column(String(255), nullable=True)
+    aangesloten_productie= Column(String(255), nullable=True)
+    huidige_fase         = Column(String(64),  nullable=True)
+    vestigingen          = Column(Text,        nullable=True)
+    implementatiepartner = Column(String(255), nullable=True)
+    uitwisselprofielen   = Column(Text,        nullable=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
 
     antwoorden = relationship("Antwoord", back_populates="zorgaanbieder")
@@ -77,6 +110,8 @@ class Antwoord(Base):
     status            = Column(Enum(AntwoordStatus), nullable=False, default=AntwoordStatus.OK)
     toelichting       = Column(Text, nullable=True)
     duur_ms           = Column(Integer, nullable=True)   # gesimuleerde/echte datastation-latency
+    query_id          = Column(String(64), nullable=True)    # zaaknummer bij het datastation (async)
+    datastation_url   = Column(String(512), nullable=True)   # waar de vraag is uitgezet
     computed_at       = Column(DateTime(timezone=True), server_default=func.now())
 
     uitvraag      = relationship("Uitvraag", back_populates="antwoorden")

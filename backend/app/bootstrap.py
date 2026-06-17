@@ -29,8 +29,24 @@ def _ensure_columns() -> None:
     (bijv. staging) ontbreken nieuwe kolommen. Deze helper voegt ze defensief toe.
     """
     wanted = {
-        "antwoorden": [("duur_ms", "INTEGER")],
+        "antwoorden": [("duur_ms", "INTEGER"), ("query_id", "VARCHAR(64)"), ("datastation_url", "VARCHAR(512)")],
         "uitvragen":  [("doorlooptijd_ms", "INTEGER")],
+        "zorgaanbieders": [
+            ("heeft_credential", "VARCHAR(8)"), ("straatnaam", "VARCHAR(255)"),
+            ("huisnummer", "VARCHAR(32)"), ("postcode", "VARCHAR(16)"),
+            ("gemeente", "VARCHAR(128)"), ("samenwerkingsverband", "VARCHAR(255)"),
+            ("doelgroepen", "TEXT"), ("sectoren", "TEXT"), ("zorgkantoren", "TEXT"),
+            ("concessiehouders", "TEXT"), ("contact_voornaam", "VARCHAR(128)"),
+            ("contact_achternaam", "VARCHAR(128)"), ("contact_telefoon", "VARCHAR(64)"),
+            ("contact_functie", "VARCHAR(255)"), ("fte", "FLOAT"),
+            ("locaties", "INTEGER"), ("bedden", "INTEGER"),
+            ("daas_leverancier", "VARCHAR(255)"), ("implementatie_consultant", "VARCHAR(255)"),
+            ("zelfscan_retour", "VARCHAR(255)"), ("intentieverklaring", "VARCHAR(255)"),
+            ("contract_datastation", "VARCHAR(255)"), ("aangesloten_test", "VARCHAR(255)"),
+            ("aangesloten_productie", "VARCHAR(255)"), ("huidige_fase", "VARCHAR(64)"),
+            ("vestigingen", "TEXT"), ("implementatiepartner", "VARCHAR(255)"),
+            ("uitwisselprofielen", "TEXT"),
+        ],
     }
     insp = inspect(engine)
     with engine.begin() as conn:
@@ -41,6 +57,16 @@ def _ensure_columns() -> None:
             for name, ddl in cols:
                 if name not in existing:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
+
+    # Nieuwe enum-waarden (Postgres) — async-statussen
+    if engine.dialect.name == "postgresql":
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            for typ, val in [("antwoordstatus", "UITGEZET"), ("antwoordstatus", "AFGEWEZEN"),
+                             ("uitvraagstatus", "LOPEND")]:
+                try:
+                    conn.execute(text(f"ALTER TYPE {typ} ADD VALUE IF NOT EXISTS '{val}'"))
+                except Exception:
+                    pass
 
     # Verbreed bestaande kolommen (alleen Postgres dwingt lengte af; SQLite negeert dit)
     if engine.dialect.name == "postgresql":
@@ -60,26 +86,26 @@ def _ensure_columns() -> None:
 
 
 def _seed_platform_admin() -> None:
-    """Reset de auth en zet één vaste test-admin neer (inloggegevens in app gebakken)."""
+    """Borg de vaste platform-admin (niet-destructief).
+
+    Maakt admin@rhadix.nl aan als die ontbreekt en zet het bekende wachtwoord;
+    raakt andere gebruikers NIET aan (geen TRUNCATE). Met AUTH_RESET=0 overslaan.
+    """
     from sqlalchemy import text
+
     email = "admin@rhadix.nl"
     password = "Rhadixvalidatie26!"
-    do_reset = os.getenv("AUTH_RESET", "1").lower() not in ("0", "false", "no")
+    if os.getenv("AUTH_RESET", "1").lower() in ("0", "false", "no"):
+        return
+
     db = SessionLocal()
     try:
-        if do_reset:
-            try:
-                db.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
-                db.commit()
-            except Exception:
-                db.rollback()
-                db.execute(text("DELETE FROM users"))
-                db.commit()
         tenant = db.query(Tenant).filter(Tenant.slug == "platform").first()
         if not tenant:
             tenant = Tenant(id=uuid.uuid4(), slug="platform", name="Rhadix Platform", is_active=True)
             db.add(tenant)
             db.flush()
+
         admin = db.query(User).filter(User.email == email).first()
         if admin:
             admin.password_hash = hash_password(password)

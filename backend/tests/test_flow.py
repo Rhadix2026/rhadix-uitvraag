@@ -161,3 +161,59 @@ def test_external_kikstarter_api(client, auth):
     # foutpaden
     assert client.post("/api/external/token", data={"grant_type": "x", "username": "a", "password": "b"}).status_code == 400
     assert client.get("/api/external/vragen?aanbiederId=30112233").status_code == 401
+
+
+# ── Async federatieve flow (datastation-routing) ──────────────────────────────
+def test_async_uitzetten_en_ophalen(client, auth, monkeypatch):
+    import app.routers.uitvragen as uv
+
+    # zorgaanbieder mét eigen datastation (async-routing)
+    r = client.post("/api/zorgaanbieders/register", headers=auth,
+                    json={"naam": "Async Zorg BV", "datastation_url": "http://twin-datastation"})
+    assert r.status_code == 201, r.text
+    za_id = r.json()["id"]
+
+    profs = client.get("/api/profielen", headers=auth).json()
+    key = profs[0]["key"]
+    code = client.get(f"/api/profielen/{key}", headers=auth).json()["indicatoren"][0]["code"]
+
+    # dien_in mocken: lever een zaaknummer terug
+    monkeypatch.setattr(uv, "dien_in", lambda z, ind, afnemer=None: {
+        "modus": "async", "query_id": "Q-123", "status": "UITGEZET",
+        "duur_ms": 12, "url": "http://twin-datastation", "toelichting": "uitgezet"})
+
+    u = client.post("/api/uitvragen", headers=auth, json={
+        "profiel_key": key, "indicator_codes": [code], "zorgaanbieder_ids": [za_id]}).json()
+    assert u["status"] == "LOPEND" and u["openstaand"] == 1
+    a = u["antwoorden"][0]
+    assert a["status"] == "UITGEZET" and a["wacht"] is True and a["query_id"] == "Q-123"
+
+    # eerste ophaal: nog in behandeling → blijft openstaan
+    monkeypatch.setattr(uv, "haal_resultaat", lambda url, qid: {"status": "IN_BEHANDELING"})
+    d1 = client.post(f"/api/uitvragen/{u['id']}/ophalen", headers=auth).json()
+    assert d1["status"] == "LOPEND" and d1["openstaand"] == 1 and d1["bijgewerkt"] == 0
+
+    # tweede ophaal: geaccordeerd → antwoord binnen
+    monkeypatch.setattr(uv, "haal_resultaat",
+                        lambda url, qid: {"status": "GEREED", "waarde": 25.3, "handmatig": False})
+    d2 = client.post(f"/api/uitvragen/{u['id']}/ophalen", headers=auth).json()
+    assert d2["status"] == "VOLTOOID" and d2["openstaand"] == 0 and d2["bijgewerkt"] == 1
+    a2 = d2["antwoorden"][0]
+    assert a2["status"] == "OK" and a2["waarde"] == 25.3 and a2["wacht"] is False
+
+
+def test_async_afwijzen(client, auth, monkeypatch):
+    import app.routers.uitvragen as uv
+    za_id = client.post("/api/zorgaanbieders/register", headers=auth,
+                        json={"naam": "Weiger Zorg", "datastation_url": "http://twin-datastation"}).json()["id"]
+    profs = client.get("/api/profielen", headers=auth).json()
+    key = profs[0]["key"]
+    code = client.get(f"/api/profielen/{key}", headers=auth).json()["indicatoren"][0]["code"]
+    monkeypatch.setattr(uv, "dien_in", lambda z, ind, afnemer=None: {
+        "modus": "async", "query_id": "Q-9", "status": "UITGEZET", "duur_ms": 5, "url": "http://x"})
+    u = client.post("/api/uitvragen", headers=auth, json={
+        "profiel_key": key, "indicator_codes": [code], "zorgaanbieder_ids": [za_id]}).json()
+    monkeypatch.setattr(uv, "haal_resultaat",
+                        lambda url, qid: {"status": "AFGEWEZEN", "toelichting": "niet van toepassing"})
+    d = client.post(f"/api/uitvragen/{u['id']}/ophalen", headers=auth).json()
+    assert d["antwoorden"][0]["status"] == "AFGEWEZEN" and d["status"] == "MISLUKT"

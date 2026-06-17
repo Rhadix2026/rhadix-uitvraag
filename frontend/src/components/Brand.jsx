@@ -21,23 +21,20 @@ export function UitvraagMark({ size = 34 }) {
   )
 }
 
-export function UitvraagLogo({ size = 34, color = '#fff', onClick }) {
+export function UitvraagLogo({ onClick }) {
   return (
     <button
       onClick={onClick}
       style={{
-        display: 'flex', alignItems: 'center', gap: 10,
+        display: 'flex', alignItems: 'center', gap: 12,
         background: 'none', border: 'none', cursor: onClick ? 'pointer' : 'default', padding: 0,
       }}
+      title="Naar startpagina"
     >
-      <UitvraagMark size={size} />
-      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1 }}>
-        <span style={{ fontWeight: 800, fontSize: 18, color, letterSpacing: '-0.01em' }}>
-          Rhadix<span style={{ color: 'var(--accent)' }}> </span>Uitvraag
-        </span>
-        <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--accent)', letterSpacing: '2px', textTransform: 'uppercase' }}>
-          KIK-V
-        </span>
+      <img src="/rhadix-logo.jpg" alt="Rhadix" style={{ height: 40, width: 'auto', objectFit: 'contain' }} />
+      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.1 }}>
+        <span style={{ fontWeight: 800, fontSize: 16, color: '#fff', letterSpacing: '-0.01em' }}>Uitvraag</span>
+        <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--accent)', letterSpacing: '2px', textTransform: 'uppercase' }}>KIK-V</span>
       </span>
     </button>
   )

@@ -85,3 +85,42 @@ def vraag_indicator(zorgaanbieder, indicator: dict) -> DatastationAntwoord:
             dur = int((time.monotonic() - t0) * 1000)
             return DatastationAntwoord("FOUT", None, f"Datastation onbereikbaar: {exc}", dur)
     return _simuleer(naam, indicator)
+
+
+def dien_in(zorgaanbieder, indicator: dict, afnemer: str | None = None) -> dict:
+    """Zet de gevalideerde vraag *asynchroon* uit bij het datastation van de
+    aanbieder (federatief: de vraag reist naar de bron). Retourneert het
+    zaaknummer (query_id); het antwoord wordt later opgehaald na beoordeling."""
+    import time
+    url = getattr(zorgaanbieder, "datastation_url", None)
+    naam = getattr(zorgaanbieder, "naam", "onbekend")
+    if not url:
+        return {"modus": "sim"}
+    t0 = time.monotonic()
+    try:
+        sparql = build_sparql(indicator["code"])
+        resp = httpx.post(
+            f"{url.rstrip('/')}/api/datastation/vragen",
+            json={"sparql": sparql, "uitwisselprofiel": indicator.get("profiel"),
+                  "indicator_code": indicator["code"], "afnemer": afnemer, "zorgaanbieder": naam},
+            timeout=12.0)
+        resp.raise_for_status()
+        dur = int((time.monotonic() - t0) * 1000)
+        d = resp.json()
+        return {"modus": "async", "query_id": d.get("query_id"), "status": "UITGEZET",
+                "duur_ms": dur, "url": url.rstrip('/'),
+                "toelichting": f"Uitgezet bij datastation van {naam}; wacht op beoordeling"}
+    except Exception as exc:
+        dur = int((time.monotonic() - t0) * 1000)
+        return {"modus": "async", "query_id": None, "status": "FOUT", "duur_ms": dur,
+                "url": url, "toelichting": f"Datastation onbereikbaar: {exc}"}
+
+
+def haal_resultaat(url: str, query_id: str) -> dict:
+    """Haal het resultaat van een uitgezette vraag op bij het datastation."""
+    try:
+        resp = httpx.get(f"{url.rstrip('/')}/api/datastation/vragen/{query_id}/resultaat", timeout=12.0)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as exc:
+        return {"status": "FOUT", "toelichting": f"Ophalen mislukt: {exc}"}

@@ -56,11 +56,22 @@ export const getProfiel    = (key) => req('GET', `/profielen/${key}`)
 // ── Zorgaanbieders ──
 export const listZorgaanbieders   = () => req('GET', '/zorgaanbieders')
 export const registerZorgaanbieder = (b) => req('POST', '/zorgaanbieders/register', b)
+export const getZorgaanbieder      = (id) => req('GET', `/zorgaanbieders/${id}`)
+export async function importZorgaanbieders(file) {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await fetch(`${BASE}/zorgaanbieders/import`, { method: 'POST', headers: authHeaders(), body: fd })
+  if (res.status === 401) { clearAuthToken(); window.dispatchEvent(new CustomEvent('rhadix:unauthorized')) }
+  const d = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(d.detail || `Import mislukt (${res.status})`)
+  return d
+}
 
 // ── Uitvragen ──
 export const createUitvraag = (b) => req('POST', '/uitvragen', b)
 export const listUitvragen  = () => req('GET', '/uitvragen')
 export const getUitvraag    = (id) => req('GET', `/uitvragen/${id}`)
+export const ophalenAntwoorden = (id) => req('POST', `/uitvragen/${id}/ophalen`)
 
 // Export-download met auth-header → blob → bestand opslaan
 export async function downloadUitvraag(id, fmt = 'csv') {
