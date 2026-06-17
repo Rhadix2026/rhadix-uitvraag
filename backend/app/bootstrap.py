@@ -86,29 +86,20 @@ def _ensure_columns() -> None:
 
 
 def _seed_platform_admin() -> None:
-    """Reset de auth en zet één vaste test-admin neer.
+    """Borg de vaste platform-admin (niet-destructief).
 
-    Tijdelijke testopzet: alle bestaande gebruikers worden bij startup verwijderd
-    en er blijft precies één platform-admin over. De inloggegevens zijn bewust in
-    de app gebakken zodat testen makkelijker is; met AUTH_RESET=0 sla je dit over.
+    Maakt admin@rhadix.nl aan als die ontbreekt en zet het bekende wachtwoord;
+    raakt andere gebruikers NIET aan (geen TRUNCATE). Met AUTH_RESET=0 overslaan.
     """
     from sqlalchemy import text
 
     email = "admin@rhadix.nl"
     password = "Rhadixvalidatie26!"
-    do_reset = os.getenv("AUTH_RESET", "1").lower() not in ("0", "false", "no")
+    if os.getenv("AUTH_RESET", "1").lower() in ("0", "false", "no"):
+        return
 
     db = SessionLocal()
     try:
-        if do_reset:
-            try:
-                db.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
-                db.commit()
-            except Exception:
-                db.rollback()
-                db.execute(text("DELETE FROM users"))
-                db.commit()
-
         tenant = db.query(Tenant).filter(Tenant.slug == "platform").first()
         if not tenant:
             tenant = Tenant(id=uuid.uuid4(), slug="platform", name="Rhadix Platform", is_active=True)
