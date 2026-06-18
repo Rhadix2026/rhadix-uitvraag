@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { UitvraagLogo } from '../components/Brand'
+import ConstellationBg from '../components/ConstellationBg'
+import { currentBrand } from '../brand'
 
 // "Home" = het Rhadix-applicatieportaal.
 const PORTAL_URL = 'https://app.rhadix.nl'
@@ -38,10 +40,10 @@ export default function LoginScreen({ onLogin }) {
         position: 'relative', overflow: 'hidden',
       }}>
         {/* Logo linksboven — klikbaar, terug naar het portaal */}
-        <div style={{ padding: '32px 48px 0', flexShrink: 0 }}>
+        <div style={{ padding: '32px 48px 0', flexShrink: 0, position: 'relative', zIndex: 1 }}>
           <UitvraagLogo onClick={() => { window.location.href = PORTAL_URL }} />
         </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 48px 100px' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 48px 100px', position: 'relative', zIndex: 1 }}>
           <span style={{
             display: 'inline-flex', alignSelf: 'flex-start', background: 'rgba(111,168,208,.25)',
             color: 'rgba(168,197,224,.95)', fontSize: 11, fontWeight: 700, letterSpacing: '1.5px',
@@ -56,10 +58,12 @@ export default function LoginScreen({ onLogin }) {
             moderne, vertrouwde omgeving.
           </p>
         </div>
-        <img src="/rhadix-boom.jpg" alt="" aria-hidden="true" style={{
-          position: 'absolute', bottom: -30, right: -20, height: 360, width: 'auto',
-          objectFit: 'contain', opacity: 0.12, pointerEvents: 'none',
-        }} />
+        {currentBrand() === 'suresync'
+          ? <ConstellationBg />
+          : <img src="/rhadix-boom.jpg" alt="" aria-hidden="true" style={{
+              position: 'absolute', bottom: -30, right: -20, height: 360, width: 'auto',
+              objectFit: 'contain', opacity: 0.12, pointerEvents: 'none',
+            }} />}
       </div>
 
       {/* ── Rechts — loginform ── */}
