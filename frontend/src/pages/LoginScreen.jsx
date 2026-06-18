@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { UitvraagLogo, UitvraagMark } from '../components/Brand'
+import { UitvraagLogo } from '../components/Brand'
 
 // "Home" = het Rhadix-applicatieportaal.
 const PORTAL_URL = 'https://app.rhadix.nl'
@@ -56,9 +56,10 @@ export default function LoginScreen({ onLogin }) {
             moderne, vertrouwde omgeving.
           </p>
         </div>
-        <div style={{ position: 'absolute', bottom: -40, right: -30, opacity: 0.12, transform: 'scale(7)' }}>
-          <UitvraagMark size={40} />
-        </div>
+        <img src="/rhadix-boom.jpg" alt="" aria-hidden="true" style={{
+          position: 'absolute', bottom: -30, right: -20, height: 360, width: 'auto',
+          objectFit: 'contain', opacity: 0.12, pointerEvents: 'none',
+        }} />
       </div>
 
       {/* ── Rechts — loginform ── */}
