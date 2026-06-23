@@ -94,7 +94,7 @@ def _seed_platform_admin() -> None:
     from sqlalchemy import text
 
     email = "admin@rhadix.nl"
-    password = "Rhadixvalidatie26!"
+    password = "Rhadixvoordezorg26!"
     if os.getenv("AUTH_RESET", "1").lower() in ("0", "false", "no"):
         return
 
