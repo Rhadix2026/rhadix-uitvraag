@@ -135,7 +135,7 @@ def test_external_kikstarter_api(client, auth):
     # OAuth2 password-grant token
     r = client.post("/api/external/token", data={
         "grant_type": "password", "username": "admin@rhadix.nl",
-        "password": "Rhadixvalidatie26!", "client_id": "ksapi"})
+        "password": "Rhadixvoordezorg26!", "client_id": "ksapi"})
     assert r.status_code == 200, r.text
     xtok = r.json()["access_token"]
     XH = {"Authorization": f"Bearer {xtok}"}
