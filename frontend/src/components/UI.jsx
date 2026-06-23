@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { UitvraagLogo } from './Brand'
+import { currentBrand, toggleBrand } from '../brand'
 
 // ─── Nav ─────────────────────────────────────────────────────────────────────
 export function Nav({ authUser, onLogout, links = [] }) {
@@ -19,6 +20,13 @@ export function Nav({ authUser, onLogout, links = [] }) {
           fontSize: 13, color: '#fff', fontFamily: 'var(--font)', fontWeight: 700,
           letterSpacing: '.03em', display: 'flex', alignItems: 'center', gap: 4,
         }}>← Terug</button>
+        {import.meta.env.VITE_KIK_ENV === 'staging' && (
+          <button onClick={toggleBrand} title="White-label demo (alleen staging)" style={{
+            background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.35)',
+            borderRadius: 99, padding: '5px 14px', cursor: 'pointer',
+            fontSize: 12.5, color: '#fff', fontFamily: 'var(--font)', fontWeight: 700,
+          }}>{currentBrand() === 'suresync' ? '← Rhadix' : 'SureSync ↗'}</button>
+        )}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         {links.map(l => (
