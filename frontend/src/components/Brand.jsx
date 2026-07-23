@@ -33,10 +33,6 @@ export function UitvraagLogo({ onClick }) {
       title="Naar startpagina"
     >
       <img src={brandLogo()} alt="logo" style={{ height: 40, width: 'auto', objectFit: 'contain' }} />
-      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.1 }}>
-        <span style={{ fontWeight: 800, fontSize: 16, color: '#fff', letterSpacing: '-0.01em' }}>Uitvraag</span>
-        <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--accent)', letterSpacing: '2px', textTransform: 'uppercase' }}>KIK-V</span>
-      </span>
     </button>
   )
 }
