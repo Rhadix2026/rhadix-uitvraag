@@ -7,13 +7,13 @@ const STATUS_STYLE = {
   VOLTOOID:     { bg: 'var(--green-light)', fg: 'var(--green)', label: 'Voltooid' },
   GEDEELTELIJK: { bg: 'var(--amber-light)', fg: 'var(--amber)', label: 'Gedeeltelijk' },
   MISLUKT:      { bg: 'var(--red-light)', fg: 'var(--red)', label: 'Mislukt' },
-  LOPEND:       { bg: 'var(--blue-light, #e0edff)', fg: 'var(--blue-dark, #1d4ed8)', label: 'Lopend' },
+  LOPEND:       { bg: 'var(--blue-light, #e0edff)', fg: 'var(--blue-dark, var(--k-blue-strong))', label: 'Lopend' },
 }
 const ANTW_STYLE = {
   OK:        { fg: 'var(--green)', label: 'OK' },
   GEEN_DATA: { fg: 'var(--amber)', label: 'Geen data' },
   FOUT:      { fg: 'var(--red)', label: 'Fout' },
-  UITGEZET:  { fg: 'var(--blue-dark, #1d4ed8)', label: 'Uitgezet' },
+  UITGEZET:  { fg: 'var(--blue-dark, var(--k-blue-strong))', label: 'Uitgezet' },
   AFGEWEZEN: { fg: 'var(--text2)', label: 'Afgewezen' },
 }
 
@@ -85,7 +85,7 @@ export default function Results() {
                 <tr key={u.id} style={{ borderTop: '1px solid var(--border)' }}>
                   <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text)' }}>{u.profiel_label}</td>
                   <td style={{ padding: '12px 16px', color: 'var(--text2)' }}>
-                    {u.aantal_antwoorden}{u.openstaand ? <span style={{ color: 'var(--blue-dark, #1d4ed8)' }}> · {u.openstaand} uit</span> : ''}
+                    {u.aantal_antwoorden}{u.openstaand ? <span style={{ color: 'var(--blue-dark, var(--k-blue-strong))' }}> · {u.openstaand} uit</span> : ''}
                   </td>
                   <td style={{ padding: '12px 16px' }}><Badge status={u.status} /></td>
                   <td style={{ padding: '12px 16px', color: 'var(--text3)', fontSize: 13 }}>{u.created_at ? new Date(u.created_at).toLocaleString('nl-NL') : '—'}</td>
@@ -115,8 +115,8 @@ export default function Results() {
           </div>
 
           {openstaand > 0 && (
-            <Card style={{ marginBottom: 16, background: 'var(--blue-light, #e0edff)', border: '1px solid var(--blue-mid, #93c5fd)' }}>
-              <div style={{ fontSize: 13, color: 'var(--blue-dark, #1d4ed8)' }}>
+            <Card style={{ marginBottom: 16, background: 'var(--blue-light, #e0edff)', border: '1px solid var(--blue-mid, var(--k-blue-mid))' }}>
+              <div style={{ fontSize: 13, color: 'var(--blue-dark, var(--k-blue-strong))' }}>
                 ⏳ <b>{openstaand}</b> van {actief.antwoorden.length} vragen staan nog uit bij het datastation van de zorgaanbieder ({binnen} binnen). Zodra de zorgaanbieder accordeert, verschijnt het antwoord hier — dit ververst automatisch.
               </div>
             </Card>
@@ -135,10 +135,10 @@ export default function Results() {
                     <tr key={a.id} style={{ borderTop: '1px solid var(--border)' }}>
                       <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text)' }}>
                         {a.zorgaanbieder}
-                        {a.async && <span title="Eigen datastation (federatief)" style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: 'var(--blue-dark, #1d4ed8)' }}>⬡</span>}
+                        {a.async && <span title="Eigen datastation (federatief)" style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: 'var(--blue-dark, var(--k-blue-strong))' }}>⬡</span>}
                       </td>
                       <td style={{ padding: '12px 16px', color: 'var(--text2)' }}>{a.indicator}</td>
-                      <td style={{ padding: '12px 16px', fontWeight: 600, color: a.status === 'UITGEZET' ? 'var(--blue-dark, #1d4ed8)' : 'var(--text)' }}>{fmtWaarde(a)}</td>
+                      <td style={{ padding: '12px 16px', fontWeight: 600, color: a.status === 'UITGEZET' ? 'var(--blue-dark, var(--k-blue-strong))' : 'var(--text)' }}>{fmtWaarde(a)}</td>
                       <td style={{ padding: '12px 16px' }}>
                         <span style={{ fontSize: 12, fontWeight: 700, color: s.fg }}>{s.label}</span>
                         {a.toelichting && <div style={{ fontSize: 11, color: 'var(--text3)' }}>{a.toelichting}</div>}

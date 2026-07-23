@@ -58,12 +58,10 @@ export default function LoginScreen({ onLogin }) {
             moderne, vertrouwde omgeving.
           </p>
         </div>
-        {currentBrand() === 'suresync'
-          ? <ConstellationBg />
-          : <img src="/rhadix-boom.jpg" alt="" aria-hidden="true" style={{
+        <img src="/rhadix-boom.jpg" alt="" aria-hidden="true" style={{
               position: 'absolute', bottom: -30, right: -20, height: 360, width: 'auto',
               objectFit: 'contain', opacity: 0.12, pointerEvents: 'none',
-            }} />}
+            }} />
       </div>
 
       {/* ── Rechts — loginform ── */}
@@ -97,7 +95,7 @@ export default function LoginScreen({ onLogin }) {
           </label>
 
           {showForgot && (
-            <div style={{ padding: '12px 14px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 'var(--radius)', fontSize: 13, color: '#1d4ed8', lineHeight: 1.55 }}>
+            <div style={{ padding: '12px 14px', background: 'var(--k-blue-light)', border: '1px solid var(--k-blue-mid)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--k-blue-strong)', lineHeight: 1.55 }}>
               <strong>Wachtwoord vergeten?</strong><br />
               Neem contact op met de beheerder van uw organisatie. Die kan via het beheerpaneel een nieuw wachtwoord voor u instellen.
             </div>
