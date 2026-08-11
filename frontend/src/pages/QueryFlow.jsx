@@ -59,6 +59,7 @@ export default function QueryFlow() {
   const [gekozenInd, setGekozenInd] = useState([])
   const [gekozenZa, setGekozenZa] = useState([])
   const [openSparql, setOpenSparql] = useState(null)
+  const [indOpen, setIndOpen] = useState(false)   // indicatoren-lijst standaard ingeklapt
   const [bezig, setBezig] = useState(false)
   const [fout, setFout] = useState(null)
 
@@ -81,6 +82,7 @@ export default function QueryFlow() {
     const p = await getProfiel(key)
     setDetail(p)
     setGekozenInd(p.indicatoren.map(i => i.code))
+    setIndOpen(false)
     setStap(1)
   }
 
@@ -153,37 +155,59 @@ export default function QueryFlow() {
 
           {/* Indicatoren kiezen */}
           <Card>
-            <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 14 }}>Kies de gevalideerde indicatoren die je wilt uitvragen.</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
-              {detail.indicatoren.map(i => {
-                const checked = gekozenInd.includes(i.code)
-                const open = openSparql === i.code
-                return (
-                  <div key={i.code} style={{ border: `1.5px solid ${checked ? 'var(--blue)' : 'var(--border)'}`, borderRadius: 'var(--radius)', background: checked ? 'var(--blue-light)' : '#fff', overflow: 'hidden' }}>
-                    <div onClick={() => toggle(gekozenInd, setGekozenInd, i.code)} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', cursor: 'pointer' }}>
-                      <span style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0, marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: '#fff', background: checked ? 'var(--blue)' : '#fff', border: `1.5px solid ${checked ? 'var(--blue)' : 'var(--border2)'}` }}>{checked ? '✓' : ''}</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{i.label}</span>
-                          <span style={{ fontSize: 12, color: 'var(--text3)', whiteSpace: 'nowrap' }}>{i.eenheid}</span>
+            {/* Inklapbare kop met telling (zoals de UP-tegel) — lijst standaard dicht */}
+            <div onClick={() => setIndOpen(o => !o)}
+              style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', userSelect: 'none' }}>
+              <span style={{ fontSize: 14, color: 'var(--text3)', transition: 'transform .15s', transform: indOpen ? 'rotate(90deg)' : 'none' }}>▸</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Gevalideerde indicatoren</div>
+                <div style={{ fontSize: 12.5, color: 'var(--text3)' }}>{indOpen ? 'Kies welke indicatoren je wilt uitvragen.' : 'Klik om te openen en de selectie aan te passen.'}</div>
+              </div>
+              <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: 'var(--blue-light)', color: 'var(--blue)', whiteSpace: 'nowrap' }}>
+                {gekozenInd.length} van {detail.indicatoren.length} geselecteerd
+              </span>
+            </div>
+
+            {indOpen && (
+              <div style={{ marginTop: 14 }}>
+                <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
+                  <button onClick={() => setGekozenInd(detail.indicatoren.map(i => i.code))}
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: 'var(--blue)', fontFamily: 'var(--font)' }}>Alles selecteren</button>
+                  <button onClick={() => setGekozenInd([])}
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: 'var(--text3)', fontFamily: 'var(--font)' }}>Niets</button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {detail.indicatoren.map(i => {
+                    const checked = gekozenInd.includes(i.code)
+                    const open = openSparql === i.code
+                    return (
+                      <div key={i.code} style={{ border: `1.5px solid ${checked ? 'var(--blue)' : 'var(--border)'}`, borderRadius: 'var(--radius)', background: checked ? 'var(--blue-light)' : '#fff', overflow: 'hidden' }}>
+                        <div onClick={() => toggle(gekozenInd, setGekozenInd, i.code)} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', cursor: 'pointer' }}>
+                          <span style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0, marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: '#fff', background: checked ? 'var(--blue)' : '#fff', border: `1.5px solid ${checked ? 'var(--blue)' : 'var(--border2)'}` }}>{checked ? '✓' : ''}</span>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{i.label}</span>
+                              <span style={{ fontSize: 12, color: 'var(--text3)', whiteSpace: 'nowrap' }}>{i.eenheid}</span>
+                            </div>
+                            {i.definitie && <div style={{ fontSize: 12.5, color: 'var(--text3)', marginTop: 3, lineHeight: 1.45 }}>{i.definitie}</div>}
+                            {i.sparql && (
+                              <button onClick={(e) => { e.stopPropagation(); setOpenSparql(open ? null : i.code) }}
+                                style={{ marginTop: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--blue)', fontFamily: 'var(--font)' }}>
+                                {open ? '− SPARQL verbergen' : '+ SPARQL tonen'}
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        {i.definitie && <div style={{ fontSize: 12.5, color: 'var(--text3)', marginTop: 3, lineHeight: 1.45 }}>{i.definitie}</div>}
-                        {i.sparql && (
-                          <button onClick={(e) => { e.stopPropagation(); setOpenSparql(open ? null : i.code) }}
-                            style={{ marginTop: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--blue)', fontFamily: 'var(--font)' }}>
-                            {open ? '− SPARQL verbergen' : '+ SPARQL tonen'}
-                          </button>
+                        {open && i.sparql && (
+                          <pre style={{ margin: 0, padding: '12px 16px', background: '#0f1a30', color: '#cfe2f3', fontSize: 12, lineHeight: 1.5, overflowX: 'auto', borderTop: '1px solid var(--border)' }}>{i.sparql}</pre>
                         )}
                       </div>
-                    </div>
-                    {open && i.sparql && (
-                      <pre style={{ margin: 0, padding: '12px 16px', background: '#0f1a30', color: '#cfe2f3', fontSize: 12, lineHeight: 1.5, overflowX: 'auto', borderTop: '1px solid var(--border)' }}>{i.sparql}</pre>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
               <BtnGhost onClick={() => setStap(0)}>← Terug</BtnGhost>
               <BtnPrimary disabled={!gekozenInd.length} onClick={() => setStap(2)}>Verder ({gekozenInd.length})</BtnPrimary>
             </div>
