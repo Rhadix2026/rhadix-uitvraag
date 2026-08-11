@@ -2,6 +2,11 @@
 
 Lees dit bestand aan het begin van elke sessie. Werk de sessie-log bij aan het eind.
 
+> **Git-workflow:** de centrale werkinstructies in `~/Developer/CLAUDE.md` zijn leidend.
+> Kort: `staging` is de ontwikkel- en integratiebranch; nooit rechtstreeks werken op of
+> pushen naar `main`; merge naar `main` en elke productie-deploy alleen na expliciet
+> akkoord van de gebruiker. Dit bestand bevat alleen repo-specifieke kennis.
+
 ## Project
 Herbouw van de **ZIN KIK-V Starter** in de **Rhadix-stack**, met Rhadix look & feel.
 - **Repo:** https://github.com/Rhadix2026/rhadix-uitvraag
@@ -33,7 +38,10 @@ Aanpak: **volledig herbouwen** in de Rhadix-stack (geen Java/Angular).
 | `staging` | Staging | 5177 / 8013 | push = automatisch |
 | `v*.*.*` tag op `main` | Productie (`uitvraag.rhadix.nl`) | 5176 / 8012 | GitHub Actions + handmatige goedkeuring |
 
-- Werk in `/tmp`-clone (niet de gemounte map). Na merge naar main ook staging uitlijnen.
+- Ontwikkelen gebeurt op `staging`. Een merge naar `main` en het pushen van een
+  `v*.*.*`-tag (= productie-deploy) uitsluitend na expliciete review en akkoord van de
+  gebruiker — zie `~/Developer/CLAUDE.md`.
+- Werk in `/tmp`-clone (niet de gemounte map) wanneer lock-file-problemen optreden.
 - **Huidige versie:** v0.7.0
 - Auth: `_seed_platform_admin` borgt `admin@rhadix.nl` **niet-destructief** (geen TRUNCATE); `AUTH_RESET=0` slaat over.
 
