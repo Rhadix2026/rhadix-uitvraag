@@ -72,6 +72,9 @@ def create_uitvraag(body: CreateUitvraag, db: Session = Depends(get_db),
     indicatoren = profiles_svc.get_indicators(body.profiel_key, body.indicator_codes)
     if not indicatoren:
         raise HTTPException(422, "Selecteer minimaal één geldige indicator")
+    # Profiel-naam meesturen zodat het datastation zijn inbox per uitwisselprofiel kan groeperen.
+    for _ind in indicatoren:
+        _ind["profiel"] = prof.get("label")
     if not body.zorgaanbieder_ids:
         raise HTTPException(422, "Selecteer minimaal één zorgaanbieder")
 
