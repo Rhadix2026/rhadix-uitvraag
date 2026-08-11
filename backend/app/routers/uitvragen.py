@@ -90,7 +90,8 @@ def create_uitvraag(body: CreateUitvraag, db: Session = Depends(get_db),
 
     n_ok = n_total = n_uit = 0
     duren = []
-    afnemer = getattr(current, "email", None)
+    # Afnemer = de vragende organisatie (bv. KIK-V), niet het e-mailadres van de gebruiker.
+    afnemer = getattr(getattr(current, "tenant", None), "name", None) or getattr(current, "email", None)
     for z in aanbieders:
         for ind in indicatoren:
             n_total += 1

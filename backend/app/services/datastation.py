@@ -102,7 +102,8 @@ def dien_in(zorgaanbieder, indicator: dict, afnemer: str | None = None) -> dict:
         resp = httpx.post(
             f"{url.rstrip('/')}/api/datastation/vragen",
             json={"sparql": sparql, "uitwisselprofiel": indicator.get("profiel"),
-                  "indicator_code": indicator["code"], "afnemer": afnemer, "zorgaanbieder": naam},
+                  "indicator_code": indicator["code"], "indicator_label": indicator.get("label"),
+                  "afnemer": afnemer, "zorgaanbieder": naam},
             timeout=12.0)
         resp.raise_for_status()
         dur = int((time.monotonic() - t0) * 1000)
