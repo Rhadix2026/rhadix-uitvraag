@@ -67,6 +67,10 @@ services:
       # noodrem aan te zetten is zonder release: LOCAL_LOGIN_ENABLED=1 in .env.staging.
       # NB: raakt niet de OAuth2 password-grant in routers/external.py.
       LOCAL_LOGIN_ENABLED: ${LOCAL_LOGIN_ENABLED:-0}
+      # Applicatietoegang via de centrale apps-claim (auth/app_access.py).
+      # off = geen controle | warn = loggen wat geweigerd zou worden | on = 403.
+      # Raakt niet de externe API: die autoriseert via de clientregistratie.
+      APP_ACCESS_ENFORCE: ${APP_ACCESS_ENFORCE:-warn}
       # ── Externe API (KIK-Starter): machine-to-machine clients ──────────────
       # Registratie van externe afnemers (base64-JSON met bcrypt-hashes), per
       # omgeving uit een GitHub Environment secret. Leeg = de tokenroute weigert
