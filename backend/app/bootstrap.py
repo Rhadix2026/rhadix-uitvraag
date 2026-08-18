@@ -1,4 +1,14 @@
-"""bootstrap.py — tabellen aanmaken en een platform-admin seeden."""
+"""bootstrap.py — tabellen aanmaken, de platform-tenant borgen en demo-data laden.
+
+Gebruikers worden NIET meer geseed. Authenticatie verloopt via SSO: Rhadix
+Datavalidatie geeft het centrale token uit en deze app provisioneert gebruikers
+just-in-time. Externe machine-clients hebben een eigen service-principal via
+client_credentials. Een lokaal adminaccount met een in de code gebakken wachtwoord
+heeft daardoor geen functie meer.
+
+Bestaande accounts blijven staan: deze module maakt, wijzigt en verwijdert geen
+gebruikers.
+"""
 from __future__ import annotations
 
 import logging
@@ -8,10 +18,9 @@ import uuid
 from sqlalchemy import inspect, text
 
 from app.database import Base, SessionLocal, engine
-from app.models.auth_models import Tenant, User, UserRole
+from app.models.auth_models import Tenant
 from app.models import kik_models  # noqa: F401  (registreert KIK-tabellen)
 from app.models.kik_models import Zorgaanbieder, AanbiederCapability
-from app.auth.security import hash_password
 
 log = logging.getLogger("rhadix.bootstrap")
 
@@ -19,7 +28,7 @@ log = logging.getLogger("rhadix.bootstrap")
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_columns()
-    _seed_platform_admin()
+    _ensure_platform_tenant()
     _ensure_api_client_principals()
     _seed_demo_zorgaanbieders()
     _seed_capabilities()
@@ -112,42 +121,23 @@ def _ensure_columns() -> None:
                         pass
 
 
-def _seed_platform_admin() -> None:
-    """Borg de vaste platform-admin (niet-destructief).
+def _ensure_platform_tenant() -> uuid.UUID:
+    """Borg de platform-tenant.
 
-    Maakt admin@rhadix.nl aan als die ontbreekt en zet het bekende wachtwoord;
-    raakt andere gebruikers NIET aan (geen TRUNCATE). Met AUTH_RESET=0 overslaan.
+    Functioneel nodig als thuisbasis binnen deze applicatie. Volledig losgekoppeld
+    van gebruikersaccounts: deze functie raakt de users-tabel niet aan. Gebruikers
+    ontstaan uitsluitend via SSO/JIT-provisioning; machine-clients krijgen hun
+    eigen service-principal (zie auth/service_principals.py).
     """
-    from sqlalchemy import text
-
-    email = "admin@rhadix.nl"
-    password = "Rhadixvoordezorg26!"
-    if os.getenv("AUTH_RESET", "1").lower() in ("0", "false", "no"):
-        return
-
     db = SessionLocal()
     try:
         tenant = db.query(Tenant).filter(Tenant.slug == "platform").first()
         if not tenant:
             tenant = Tenant(id=uuid.uuid4(), slug="platform", name="Rhadix Platform", is_active=True)
             db.add(tenant)
-            db.flush()
-
-        admin = db.query(User).filter(User.email == email).first()
-        if admin:
-            admin.password_hash = hash_password(password)
-            admin.is_active = True
-            admin.role = UserRole.PLATFORM_ADMIN
-            admin.tenant_id = tenant.id
-        else:
-            db.add(User(
-                id=uuid.uuid4(), tenant_id=tenant.id, email=email,
-                full_name="Platformbeheerder", password_hash=hash_password(password),
-                role=UserRole.PLATFORM_ADMIN, is_active=True,
-            ))
-        db.commit()
-    except Exception:
-        db.rollback()
+            db.commit()
+            db.refresh(tenant)
+        return tenant.id
     finally:
         db.close()
 

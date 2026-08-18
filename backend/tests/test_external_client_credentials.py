@@ -234,8 +234,31 @@ def test_password_grant_vereist_ook_client_secret_indien_ingeschakeld(client, re
 
 
 def test_password_grant_werkt_alleen_bewust_ingeschakeld(client, registry, monkeypatch):
+    """Bewust ingeschakeld werkt de oude weg nog, mét geldig client-credential.
+
+    De bootstrap seedt geen adminaccount meer, dus deze test maakt zelf een
+    gebruiker met een wachtwoord aan — precies het soort account dat een externe
+    partij tijdens een migratie nog zou gebruiken.
+    """
+    from app.auth.security import hash_password
+    from app.bootstrap import _ensure_platform_tenant
+    from app.database import SessionLocal
+    from app.models.auth_models import User, UserRole
+
+    email, wachtwoord = "migratie-gebruiker@test.rhadix.nl", "MigratieWachtwoord1!"
+    db = SessionLocal()
+    try:
+        if not db.query(User).filter(User.email == email).first():
+            db.add(User(email=email, full_name="Migratiegebruiker",
+                        password_hash=hash_password(wachtwoord),
+                        role=UserRole.ORG_USER, is_active=True,
+                        tenant_id=_ensure_platform_tenant()))
+            db.commit()
+    finally:
+        db.close()
+
     monkeypatch.setenv("KSAPI_ALLOW_PASSWORD_GRANT", "1")
     r = client.post("/api/external/token", data={
-        "grant_type": "password", "username": "admin@rhadix.nl",
-        "password": "Rhadixvoordezorg26!", "client_id": CLIENT_A, "client_secret": SECRET_A})
+        "grant_type": "password", "username": email, "password": wachtwoord,
+        "client_id": CLIENT_A, "client_secret": SECRET_A})
     assert r.status_code == 200, r.text
