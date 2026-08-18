@@ -113,16 +113,17 @@ def test_vlag_staat_standaard_en_bij_onbekende_waarden_uit(client, monkeypatch, 
                        json={"email": "admin@rhadix.nl", "password": "x"}).status_code == 403
 
 
-# ── 3. Vastleggen dat de externe API bewust nog openstaat ────────────────────
-def test_externe_password_grant_is_bewust_nog_open(client):
-    """Regressiebescherming: legt het huidige gedrag vast, inclusief de opening.
+# ── 3. Ook de externe API accepteert geen gebruikerswachtwoord meer ──────────
+def test_externe_password_grant_geblokkeerd(client):
+    """De laatste omweg om de SSO-keten te passeren is dicht.
 
-    /external/token accepteert nog steeds een wachtwoord. Dat is een bewuste keuze
-    (externe afnemers), geen vergissing — maar het betekent dat de SSO-keten via
-    deze route nog te omzeilen is. Zodra dat wordt aangepakt hoort deze test mee
-    te veranderen.
+    /external/token draaide op een gebruikersaccount met wachtwoord — in de
+    praktijk het bootstrap-adminaccount met het gelekte wachtwoord. Externe
+    afnemers gebruiken nu client_credentials; zie
+    test_external_client_credentials.py voor de volledige flow.
     """
     r = client.post("/api/external/token", data={
         "grant_type": "password", "username": "admin@rhadix.nl",
         "password": "Rhadixvoordezorg26!", "client_id": "ksapi"})
-    assert r.status_code == 200, "externe password-grant is (nog) bewust open"
+    assert r.status_code == 401, r.text
+    assert "client_credentials" in r.json()["detail"]

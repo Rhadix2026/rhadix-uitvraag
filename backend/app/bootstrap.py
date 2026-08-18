@@ -1,6 +1,7 @@
 """bootstrap.py — tabellen aanmaken en een platform-admin seeden."""
 from __future__ import annotations
 
+import logging
 import os
 import uuid
 
@@ -12,14 +13,40 @@ from app.models import kik_models  # noqa: F401  (registreert KIK-tabellen)
 from app.models.kik_models import Zorgaanbieder, AanbiederCapability
 from app.auth.security import hash_password
 
+log = logging.getLogger("rhadix.bootstrap")
+
 
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _ensure_columns()
     _seed_platform_admin()
+    _ensure_api_client_principals()
     _seed_demo_zorgaanbieders()
     _seed_capabilities()
     _seed_twin_capabilities()
+
+
+def _ensure_api_client_principals() -> None:
+    """Borg tenant + service-principal voor elke geregistreerde externe API-client.
+
+    Idempotent en niet-destructief. Ontbreekt de registratie, dan gebeurt er niets:
+    de externe tokenroute weigert dan zelf dienst (fail-closed).
+    """
+    from app.auth.api_clients import load_clients
+    from app.auth.service_principals import ensure_service_principal
+
+    clients = load_clients()
+    if not clients:
+        return
+    db = SessionLocal()
+    try:
+        for client in clients.values():
+            ensure_service_principal(db, client)
+    except Exception:
+        db.rollback()
+        log.error("Borgen van API-client-principals mislukt", exc_info=True)
+    finally:
+        db.close()
 
 
 def _ensure_columns() -> None:

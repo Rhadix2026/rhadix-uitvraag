@@ -66,6 +66,16 @@ services:
       # noodrem aan te zetten is zonder release: LOCAL_LOGIN_ENABLED=1 in .env.staging.
       # NB: raakt niet de OAuth2 password-grant in routers/external.py.
       LOCAL_LOGIN_ENABLED: ${LOCAL_LOGIN_ENABLED:-0}
+      # ── Externe API (KIK-Starter): machine-to-machine clients ──────────────
+      # Registratie van externe afnemers (base64-JSON met bcrypt-hashes), per
+      # omgeving uit een GitHub Environment secret. Leeg = de tokenroute weigert
+      # dienst (fail-closed); de rest van de applicatie start gewoon.
+      KSAPI_CLIENTS: ${KSAPI_CLIENTS:-}
+      # Oude password-grant: standaard UIT, alleen bewust en tijdelijk aan te
+      # zetten tijdens migratie van een externe afnemer.
+      KSAPI_ALLOW_PASSWORD_GRANT: ${KSAPI_ALLOW_PASSWORD_GRANT:-0}
+      # Clienttokens leven korter dan gebruikerstokens.
+      KSAPI_TOKEN_EXPIRE_MINUTES: ${KSAPI_TOKEN_EXPIRE_MINUTES:-60}
       FUSEKI_URL:         http://kik-staging-fuseki:3030
       FUSEKI_DATASET:     kik
       FUSEKI_USER:        admin

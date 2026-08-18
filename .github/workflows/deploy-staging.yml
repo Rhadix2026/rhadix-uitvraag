@@ -110,6 +110,10 @@ jobs:
             echo "STAGING_DB_PASSWORD=${{ secrets.STAGING_DB_PASSWORD }}"         >> /opt/kik-app/.env.staging
             echo "STAGING_JWT_SECRET_KEY=${{ secrets.STAGING_JWT_SECRET_KEY }}"   >> /opt/kik-app/.env.staging
             echo "STAGING_ADMIN_PASSWORD=${{ secrets.STAGING_ADMIN_PASSWORD }}"   >> /opt/kik-app/.env.staging
+            # Externe API-clients (base64-JSON met bcrypt-hashes). Base64 voorkomt
+            # dat de `$` uit bcrypt-hashes in de env-file wordt geïnterpreteerd.
+            # Leeg of ontbrekend = tokenroute fail-closed; de app start gewoon.
+            echo "KSAPI_CLIENTS=${{ secrets.STAGING_KSAPI_CLIENTS }}"             >> /opt/kik-app/.env.staging
             chmod 600 /opt/kik-app/.env.staging
 
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
