@@ -132,11 +132,21 @@ def test_profielen_refresh_admin(client, auth):
     assert client.post("/api/profielen/refresh").status_code == 401
 
 
-def test_external_kikstarter_api(client, auth):
-    # OAuth2 password-grant token
+def test_external_kikstarter_api(client, auth, monkeypatch):
+    # OAuth2 client_credentials: machine-to-machine, los van gebruikersaccounts
+    import base64 as _b64
+    import json as _json
+
+    from app.auth.api_clients import hash_secret
+
+    _SECRET = "test-secret-kikstarter-flow-001"
+    monkeypatch.setenv("KSAPI_CLIENTS", _b64.b64encode(_json.dumps([
+        {"client_id": "ksapi", "naam": "KIK-Starter testclient",
+         "tenant": "platform", "secret_hash": hash_secret(_SECRET)},
+    ]).encode()).decode())
+
     r = client.post("/api/external/token", data={
-        "grant_type": "password", "username": "admin@rhadix.nl",
-        "password": "Rhadixvoordezorg26!", "client_id": "ksapi"})
+        "grant_type": "client_credentials", "client_id": "ksapi", "client_secret": _SECRET})
     assert r.status_code == 200, r.text
     xtok = r.json()["access_token"]
     XH = {"Authorization": f"Bearer {xtok}"}
