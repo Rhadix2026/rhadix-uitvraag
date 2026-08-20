@@ -34,7 +34,7 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException, status
 
-from app.auth.dependencies import get_optional_user
+from app.auth.dependencies import get_current_user, get_optional_user
 from app.models.auth_models import User
 
 log = logging.getLogger("rhadix.app_access")
@@ -111,5 +111,42 @@ def require_app_access(user: Optional[User] = Depends(get_optional_user)) -> Opt
             status.HTTP_403_FORBIDDEN,
             f"U heeft geen toegang tot Rhadix Uitvraag. Vraag uw beheerder om de "
             f"applicatie '{APP_SLUG}' aan uw account of organisatie toe te wijzen.",
+        )
+    return user
+
+
+def is_machine_client(user: User) -> bool:
+    """Is deze principal een machine-client uit de client_credentials-flow?"""
+    return (getattr(user, "_token_typ", None) == "client"
+            and getattr(user, "_token_scope", None) == "external")
+
+
+def require_machine_client(user: User = Depends(get_current_user)) -> User:
+    """Externe API: uitsluitend machine-to-machine principals.
+
+    De tegenhanger van require_app_access. Waar die menselijke tokens beoordeelt op
+    de apps-claim, weigert deze alles wat GEEN machine-client is.
+
+    Zonder deze controle accepteren de externe routes elk geldig token, dus ook een
+    menselijk centraal SSO-token. Een gebruiker die op de menselijke routes 403
+    krijgt omdat 'uitvraag' in zijn apps-claim ontbreekt, kon dezelfde gegevens dan
+    alsnog via /api/external/* opvragen — een omweg om de apps-claim heen.
+
+    De tenantbinding blijft ongewijzigd: de routes filteren nog steeds op
+    current.tenant_id, wat voor een machine-client de tenant uit de serverzijdige
+    clientregistratie is.
+    """
+    if not is_machine_client(user):
+        log.warning(
+            "EXTERNAL_API GEWEIGERD: gebruiker=%s tenant=%s reden=geen machine-client "
+            "(typ=%s scope=%s)",
+            getattr(user, "email", "?"), getattr(user, "tenant_id", "?"),
+            getattr(user, "_token_typ", None), getattr(user, "_token_scope", None),
+        )
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Deze API is uitsluitend toegankelijk met een machine-to-machine token "
+            "(grant_type=client_credentials). Gebruik voor toegang als gebruiker de "
+            "reguliere applicatieroutes.",
         )
     return user

@@ -262,3 +262,86 @@ def test_password_grant_werkt_alleen_bewust_ingeschakeld(client, registry, monke
         "grant_type": "password", "username": email, "password": wachtwoord,
         "client_id": CLIENT_A, "client_secret": SECRET_A})
     assert r.status_code == 200, r.text
+
+
+# ── Strikte scheiding: de externe API is uitsluitend voor machine-clients ────
+# Een geldig menselijk SSO-token accepteerde deze routes voorheen ook. Daardoor kon
+# een gebruiker die op de menselijke routes 403 kreeg (geen 'uitvraag' in de
+# apps-claim) dezelfde gegevens alsnog via /api/external/* opvragen.
+from tests._testkeys import central_token as _central
+
+_EXT_VRAGEN = "/api/external/vragen?aanbiederIdType=kvk&aanbiederId=30112233"
+_EXT_RES = "/api/external/vraag/00000000-0000-0000-0000-000000000000/resultaten"
+
+
+def _mens(apps):
+    return _central({
+        "sub": "99999999-9999-9999-9999-999999999999",
+        "email": "mens@test.rhadix.nl", "role": "RHADIX_ADMIN",
+        "tenant_name": "Platform", "apps": apps,
+    })
+
+
+def _machine(client, monkeypatch):
+    """Geldig machine-token via de registratie-helpers van dit bestand."""
+    monkeypatch.setenv("KSAPI_CLIENTS", _registry())
+    return client.post("/api/external/token", data={
+        "grant_type": "client_credentials", "client_id": CLIENT_A,
+        "client_secret": SECRET_A}).json()["access_token"]
+
+
+# Positief: de machine-client houdt toegang
+def test_scheiding_machine_token_mag_externe_routes(client, monkeypatch):
+    tok = _machine(client, monkeypatch)
+    H = {"Authorization": f"Bearer {tok}"}
+    assert client.get(_EXT_VRAGEN, headers=H).status_code == 200
+    assert client.get(_EXT_RES, headers=H).status_code in (200, 404)  # 404 = route bereikt
+
+
+# Negatief: menselijke tokens worden geweigerd, mét én zonder app-toewijzing
+def test_scheiding_menselijk_token_met_toewijzing_geweigerd(client):
+    H = {"Authorization": f"Bearer {_mens(['uitvraag', 'datavalidatie'])}"}
+    r = client.get(_EXT_VRAGEN, headers=H)
+    assert r.status_code == 403, r.text
+    assert "client_credentials" in r.json()["detail"]
+
+
+def test_scheiding_menselijk_token_zonder_toewijzing_geweigerd(client):
+    """De omweg om de apps-claim heen is dicht."""
+    H = {"Authorization": f"Bearer {_mens(['datavalidatie'])}"}
+    assert client.get(_EXT_VRAGEN, headers=H).status_code == 403
+    assert client.get(_EXT_RES, headers=H).status_code == 403
+
+
+def test_scheiding_platform_admin_geen_uitzondering(client):
+    """Ook een platformbeheerder komt er niet in: rol geeft geen toegang."""
+    H = {"Authorization": f"Bearer {_mens(['uitvraag', 'datastation', 'rhadix-crm'])}"}
+    assert client.get(_EXT_VRAGEN, headers=H).status_code == 403
+
+
+def test_scheiding_zonder_token_blijft_401(client):
+    assert client.get(_EXT_VRAGEN).status_code == 401
+
+
+def test_scheiding_tokenroute_blijft_publiek(client, registry):
+    """/external/token moet bereikbaar blijven; anders kan niemand een token halen."""
+    assert client.post("/api/external/token", data={
+        "grant_type": "client_credentials", "client_id": CLIENT_A,
+        "client_secret": "fout"}).status_code == 401
+
+
+def test_scheiding_tenantbinding_blijft_gehandhaafd(client, monkeypatch, auth):
+    """De machine-client ziet nog steeds uitsluitend zijn eigen tenant."""
+    import base64 as _b, json as _j
+    from app.auth.api_clients import hash_secret
+
+    secret = "test-secret-scheiding-tenant-001"
+    monkeypatch.setenv("KSAPI_CLIENTS", _b.b64encode(_j.dumps([{
+        "client_id": "scheiding-client", "tenant": "scheiding-eigen-tenant",
+        "secret_hash": hash_secret(secret)}]).encode()).decode())
+    tok = client.post("/api/external/token", data={
+        "grant_type": "client_credentials", "client_id": "scheiding-client",
+        "client_secret": secret}).json()["access_token"]
+    r = client.get(_EXT_VRAGEN, headers={"Authorization": f"Bearer {tok}"})
+    assert r.status_code == 200
+    assert r.json()["aantal"] == 0, "client ziet uitvragen van een andere tenant"

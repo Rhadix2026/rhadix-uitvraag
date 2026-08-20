@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.auth.api_clients import load_clients, verify_client_secret
-from app.auth.dependencies import get_current_user
+from app.auth.app_access import require_machine_client
 from app.auth.security import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, verify_password
 from app.auth.service_principals import ensure_service_principal
 from app.database import get_db
@@ -110,7 +110,7 @@ def _namen_voor_kvk(db: Session, kvk: str) -> set[str]:
 @router.get("/external/vragen")
 def external_vragen(aanbiederId: str = Query(...), aanbiederIdType: str = Query("kvk"),
                     datumOntvangen: str | None = Query(None), paginanummer: int = Query(1, ge=1),
-                    db: Session = Depends(get_db), current: User = Depends(get_current_user)):
+                    db: Session = Depends(get_db), current: User = Depends(require_machine_client)):
     """Vragen (uitvragen) ophalen voor een aanbieder, geïdentificeerd via KVK."""
     if aanbiederIdType != "kvk":
         raise HTTPException(400, "Alleen aanbiederIdType=kvk wordt ondersteund")
@@ -141,7 +141,7 @@ def external_vragen(aanbiederId: str = Query(...), aanbiederIdType: str = Query(
 @router.get("/external/vraag/{query_id}/resultaten")
 def external_resultaten(query_id: str, aanbiederId: str | None = Query(None),
                         paginanummer: int = Query(1, ge=1),
-                        db: Session = Depends(get_db), current: User = Depends(get_current_user)):
+                        db: Session = Depends(get_db), current: User = Depends(require_machine_client)):
     """Resultaten (antwoorden) ophalen voor een vraag op basis van query_id."""
     try:
         uid = _uuid.UUID(query_id)
