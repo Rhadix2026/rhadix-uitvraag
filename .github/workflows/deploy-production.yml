@@ -140,12 +140,45 @@ jobs:
             DB_NAME=kik_starter
             FRONTEND_PORT=5176
             BACKEND_PORT=8012
+            # ── Authenticatie & autorisatie (menselijk) ──────────────────────
+            # Lokale wachtwoord-login uit; authenticatie verloopt via SSO.
+            LOCAL_LOGIN_ENABLED=0
+            # Applicatietoegang via de centrale apps-claim. EERSTE PRODUCTIE-
+            # RELEASE START OP WARN: weigeringen worden gelogd, niemand wordt
+            # buitengesloten. Naar 'on' pas na analyse van de productielogs en
+            # afzonderlijk akkoord per applicatie. Raakt NIET de externe API.
+            # ROLLBACK zonder release: deze regel op 'off' zetten in
+            # /opt/kik-app/.env.production en de backend herstarten.
+            APP_ACCESS_ENFORCE=warn
+            # ── Externe API (machine-to-machine) ─────────────────────────────
+            # Oude password-grant uit; clienttokens 60 minuten geldig.
+            KSAPI_ALLOW_PASSWORD_GRANT=0
+            KSAPI_TOKEN_EXPIRE_MINUTES=60
+            # DEPRECATED — niets leest KIK_ADMIN_* nog; opschoning volgt apart.
             KIK_ADMIN_EMAIL=admin@kik-starter.nl
             ENVEOF
             echo "KIK_VERSION=$VERSION"                                  >> /opt/kik-app/.env.production
             echo "DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }}"           >> /opt/kik-app/.env.production
             echo "JWT_SECRET_KEY=${{ secrets.PROD_JWT_SECRET_KEY }}"     >> /opt/kik-app/.env.production
             echo "KIK_ADMIN_PASSWORD=${{ secrets.PROD_ADMIN_PASSWORD }}" >> /opt/kik-app/.env.production
+            # Externe API-clients: base64-JSON met bcrypt-hashes. Base64 voorkomt
+            # dat de `$` uit bcrypt-hashes in de env-file wordt geïnterpreteerd.
+            #
+            # Het secret hoort ALTIJD te bestaan, ook als er geen afnemers zijn.
+            # Gebruik dan de expliciete lege registratie W10= (base64 van "[]").
+            # GitHub staat geen leeg secret toe, dus "bestaat maar leeg" wordt zo
+            # uitgedrukt. De applicatie valt in alle gevallen fail-closed terug
+            # (ontbrekend, leeg, W10= of onbruikbaar => tokenroute geeft 503), maar
+            # met W10= is de bedoeling expliciet in plaats van impliciet.
+            KSAPI_REG="${{ secrets.PROD_KSAPI_CLIENTS }}"
+            echo "KSAPI_CLIENTS=$KSAPI_REG"                              >> /opt/kik-app/.env.production
+            if [ -z "$KSAPI_REG" ]; then
+              echo "LET OP: PROD_KSAPI_CLIENTS ontbreekt of is leeg — externe API fail-closed (503)"
+            elif [ "$KSAPI_REG" = "W10=" ]; then
+              echo "PROD_KSAPI_CLIENTS = lege registratie ([]) — externe API fail-closed (503), geen afnemers"
+            else
+              echo "PROD_KSAPI_CLIENTS gezet — externe API actief met geregistreerde client(s)"
+            fi
             chmod 600 /opt/kik-app/.env.production
 
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
