@@ -86,7 +86,9 @@ services:
       FUSEKI_USER:        admin
       FUSEKI_PASSWORD:    ${STAGING_FUSEKI_PASSWORD:-kik-staging-admin}
       RHADIX_PROFILES_URL: ${STAGING_PROFILES_URL:-}
-      VALIDATION_API_URL: ${VALIDATION_API_URL:-https://app.rhadix.nl}
+      # B-25: staging haalt de uitwisselprofielen bij Datavalidatie-STAGING, zodat de
+      # ketentest de geactualiseerde profielen gebruikt (was: productie).
+      VALIDATION_API_URL: ${VALIDATION_API_URL:-https://app-staging.rhadix.nl}
       # Twin-aanbieder (B-27): expliciet de staging-Datastation (host-poort 8017).
       # De code kent geen standaard meer; zonder deze regel is er geen twin.
       TWIN_DATASTATION_URL: http://host.docker.internal:8017
