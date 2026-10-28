@@ -97,12 +97,10 @@ services:
       # Afnemer-identiteit bij het datastation (B-28): centraal serviceaccount.
       # E-mail en wachtwoord staan alleen in het serverbestand hieronder (600, root).
       DATASTATION_AFNEMER_LOGIN_URL: https://app-staging.rhadix.nl
-      # B-28 stap 5: machineaccount (client_credentials) met doelgroep; heeft
-      # voorrang op het serviceaccount uit het eerste bestand (overgang).
+      # B-28: machineaccount (client_credentials) met doelgroep. Client-id en geheim
+      # staan alleen in het serverbestand hieronder (600, root).
       DATASTATION_AFNEMER_AUDIENCE: datastation-staging
     env_file:
-      - path: /opt/kik-app/datastation-afnemer.staging.env
-        required: false
       - path: /opt/kik-app/datastation-afnemer-machine.staging.env
         required: false
     ports:
