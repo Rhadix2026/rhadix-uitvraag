@@ -229,6 +229,12 @@ def get_uitvraag(uitvraag_id: str, db: Session = Depends(get_db), current: User 
     return _uitvraag_dict(_get_owned(uitvraag_id, db, current), with_antwoorden=True)
 
 
+def _actueel_datastation(a: Antwoord, db: Session) -> bool:
+    z = db.get(Zorgaanbieder, a.zorgaanbieder_id) if a.zorgaanbieder_id else None
+    huidig = (getattr(z, "datastation_url", None) or "").rstrip("/")
+    return bool(huidig) and huidig == a.datastation_url.rstrip("/")
+
+
 @router.post("/uitvragen/{uitvraag_id}/ophalen")
 def ophalen_antwoorden(uitvraag_id: str, db: Session = Depends(get_db),
                        current: User = Depends(get_current_user)):
@@ -238,6 +244,11 @@ def ophalen_antwoorden(uitvraag_id: str, db: Session = Depends(get_db),
     bijgewerkt = 0
     for a in u.antwoorden:
         if a.status != AntwoordStatus.UITGEZET or not a.query_id or not a.datastation_url:
+            continue
+        # Alleen ophalen bij het datastation waar de aanbieder nú op aangesloten is
+        # (B-27). Is de aanbieder losgekoppeld of omgezet, dan blijft het antwoord
+        # ongewijzigd uitstaan in plaats van een oude URL te benaderen.
+        if not _actueel_datastation(a, db):
             continue
         r = haal_resultaat(a.datastation_url, a.query_id)
         st = r.get("status")
