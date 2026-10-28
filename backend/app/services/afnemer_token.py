@@ -10,9 +10,13 @@ rotatie (wachtwoord resetten), intrekking (account deactiveren) en audit lopen v
 het centrale beheer.
 
 Configuratie (geheimen alleen uit een serverbestand, nooit uit Git):
-    DATASTATION_AFNEMER_LOGIN_URL   https-basis van de centrale login
-    DATASTATION_AFNEMER_EMAIL       serviceaccount
-    DATASTATION_AFNEMER_WACHTWOORD  wachtwoord van het serviceaccount
+    DATASTATION_AFNEMER_LOGIN_URL      https-basis van het centrale platform
+    Bij voorkeur een machineaccount (B-28 stap 5; client_credentials):
+    DATASTATION_AFNEMER_CLIENT_ID      id van het machineaccount
+    DATASTATION_AFNEMER_CLIENT_SECRET  geheim (rmx_…)
+    DATASTATION_AFNEMER_AUDIENCE       doelgroep, bijv. datastation-staging
+    Alleen tijdens de overgang, als er geen machineaccount is ingesteld:
+    DATASTATION_AFNEMER_EMAIL / _WACHTWOORD  serviceaccount
 
 Niet geconfigureerd = geen token; de aanroep gaat dan zonder token en een datastation
 dat authenticatie vraagt, weigert hem. Het token wordt nooit gelogd, en alleen
@@ -44,9 +48,13 @@ def _env(naam: str) -> str:
     return (os.getenv(naam) or "").strip()
 
 
+def _machine() -> bool:
+    return bool(_env("DATASTATION_AFNEMER_CLIENT_ID") and _env("DATASTATION_AFNEMER_CLIENT_SECRET"))
+
+
 def geconfigureerd() -> bool:
-    return bool(_env("DATASTATION_AFNEMER_LOGIN_URL") and _env("DATASTATION_AFNEMER_EMAIL")
-                and _env("DATASTATION_AFNEMER_WACHTWOORD"))
+    return bool(_env("DATASTATION_AFNEMER_LOGIN_URL") and (
+        _machine() or (_env("DATASTATION_AFNEMER_EMAIL") and _env("DATASTATION_AFNEMER_WACHTWOORD"))))
 
 
 def _vervaltijd(token: str) -> float:
@@ -77,11 +85,20 @@ def token(vernieuw: bool = False) -> Optional[str]:
         return None
     try:
         with httpx.Client(follow_redirects=False, trust_env=False, timeout=TIJDSLIMIET) as c:
-            r = c.post(f"{basis}/api/auth/login",
-                       json={"email": _env("DATASTATION_AFNEMER_EMAIL"),
-                             "password": _env("DATASTATION_AFNEMER_WACHTWOORD")})
+            if _machine():
+                soort = "machine"
+                r = c.post(f"{basis}/api/auth/machine-token",
+                           json={"grant_type": "client_credentials",
+                                 "client_id": _env("DATASTATION_AFNEMER_CLIENT_ID"),
+                                 "client_secret": _env("DATASTATION_AFNEMER_CLIENT_SECRET"),
+                                 "audience": _env("DATASTATION_AFNEMER_AUDIENCE") or None})
+            else:
+                soort = "serviceaccount"
+                r = c.post(f"{basis}/api/auth/login",
+                           json={"email": _env("DATASTATION_AFNEMER_EMAIL"),
+                                 "password": _env("DATASTATION_AFNEMER_WACHTWOORD")})
         if r.status_code != 200:
-            log.error("afnemer-token: centrale login gaf HTTP %s", r.status_code)
+            log.error("afnemer-token (%s): centrale uitgifte gaf HTTP %s", soort, r.status_code)
             return None
         waarde = r.json().get("access_token")
     except Exception as exc:
@@ -94,5 +111,5 @@ def token(vernieuw: bool = False) -> Optional[str]:
     with _slot:
         _cache["waarde"] = waarde
         _cache["geldig_tot"] = (verloopt - TOKENMARGE) if verloopt else time.time() + 300
-    log.info("afnemer-token: nieuw centraal token opgehaald")
+    log.info("afnemer-token: nieuw centraal token opgehaald (%s)", soort)
     return waarde

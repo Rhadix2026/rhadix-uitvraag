@@ -135,3 +135,51 @@ def test_token_nooit_over_http_naar_publieke_bestemming(net, monkeypatch):
     r = ds.dien_in(_Za("https://datastation.voorbeeld.nl"), IND)
     assert r["status"] == "UITGEZET" and net["verzoeken"][-1].url.scheme == "https"
     assert net["verzoeken"][-1].headers["authorization"].startswith("Bearer ")
+
+
+# ── B-28 stap 5: machineaccount (client_credentials) ─────────────────────────
+GEHEIM = "rmx_" + "S" * 43
+
+
+@pytest.fixture
+def machine(net, monkeypatch):
+    monkeypatch.setenv("DATASTATION_AFNEMER_CLIENT_ID", "98da413f-f792-4daa-9581-06daaf2255c1")
+    monkeypatch.setenv("DATASTATION_AFNEMER_CLIENT_SECRET", GEHEIM)
+    monkeypatch.setenv("DATASTATION_AFNEMER_AUDIENCE", "datastation-staging")
+    gezien = []
+    oud = at.httpx.Client
+
+    def handler(rq):
+        if rq.url.host == "login.voorbeeld.nl":
+            gezien.append((rq.url.path, json.loads(rq.content)))
+            net["logins"] += 1
+            return httpx.Response(200, json={"access_token": _jwt(net["exp"], net["logins"]), "expires_in": 900})
+        net["verzoeken"].append(rq)
+        return net["ds"](rq)
+    monkeypatch.setattr(at.httpx, "Client", lambda **kw: _HTTPX_CLIENT(transport=httpx.MockTransport(handler), **kw))
+    monkeypatch.setattr(bestemming.httpx, "Client", lambda **kw: _HTTPX_CLIENT(transport=httpx.MockTransport(handler), **kw))
+    return gezien
+
+
+def test_machineaccount_heeft_voorrang(machine, net):
+    r = ds.dien_in(_Za(INTERN), IND)
+    assert r["status"] == "UITGEZET"
+    pad, body = machine[0]
+    assert pad == "/api/auth/machine-token", "niet meer via de gebruikerslogin"
+    assert body == {"grant_type": "client_credentials", "client_id": "98da413f-f792-4daa-9581-06daaf2255c1",
+                    "client_secret": GEHEIM, "audience": "datastation-staging"}
+
+
+def test_machinegeheim_nooit_in_log(machine, net, caplog):
+    net["ds"] = lambda rq: httpx.Response(500)
+    with caplog.at_level(logging.INFO):
+        ds.dien_in(_Za(INTERN), IND)
+    assert GEHEIM not in caplog.text and "SSSSSSSS" not in caplog.text
+    assert "(machine)" in caplog.text
+
+
+def test_machine_na_401_eenmaal_vernieuwen(machine, net):
+    antwoorden = iter([httpx.Response(401), httpx.Response(201, json={"query_id": "q-m"})])
+    net["ds"] = lambda rq: next(antwoorden)
+    assert ds.dien_in(_Za(INTERN), IND)["query_id"] == "q-m"
+    assert [p for p, _ in machine] == ["/api/auth/machine-token"] * 2
