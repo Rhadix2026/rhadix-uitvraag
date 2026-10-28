@@ -90,6 +90,10 @@ services:
       # Twin-aanbieder (B-27): expliciet de staging-Datastation (host-poort 8017).
       # De code kent geen standaard meer; zonder deze regel is er geen twin.
       TWIN_DATASTATION_URL: http://host.docker.internal:8017
+      # Bestemmingen die de server mag aanroepen (B-29); al het andere wordt
+      # geweigerd. Intern = bewust toegestaan intern adres, zonder IP-controle.
+      DATASTATION_BESTEMMINGEN:         ${DATASTATION_BESTEMMINGEN:-}
+      DATASTATION_INTERNE_BESTEMMINGEN: http://host.docker.internal:8017
     ports:
       - "${STAGING_BACKEND_PORT:-8013}:8000"
 
