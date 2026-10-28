@@ -26,12 +26,14 @@ def test_zorgaanbieder_registratie_en_lijst(client, auth):
     # demo-aanbieders zijn geseed
     za = client.get("/api/zorgaanbieders", headers=auth).json()
     assert len(za) >= 3
-    # publieke zelfregistratie (zonder token)
-    r = client.post("/api/zorgaanbieders/register",
+    # registratie vraagt een ingelogde beheerder (B-29; was publiek)
+    assert client.post("/api/zorgaanbieders/register",
+                       json={"naam": "Testaanbieder X", "plaats": "Zwolle"}).status_code == 401
+    r = client.post("/api/zorgaanbieders/register", headers=auth,
                     json={"naam": "Testaanbieder X", "plaats": "Zwolle"})
     assert r.status_code == 201, r.text
     # dubbele naam -> 400
-    assert client.post("/api/zorgaanbieders/register",
+    assert client.post("/api/zorgaanbieders/register", headers=auth,
                        json={"naam": "Testaanbieder X"}).status_code == 400
 
 
@@ -177,6 +179,7 @@ def test_external_kikstarter_api(client, auth, monkeypatch):
 # ── Async federatieve flow (datastation-routing) ──────────────────────────────
 def test_async_uitzetten_en_ophalen(client, auth, monkeypatch):
     import app.routers.uitvragen as uv
+    monkeypatch.setenv("DATASTATION_INTERNE_BESTEMMINGEN", "http://twin-datastation")  # B-29
 
     # zorgaanbieder mét eigen datastation (async-routing)
     r = client.post("/api/zorgaanbieders/register", headers=auth,
@@ -215,6 +218,7 @@ def test_async_uitzetten_en_ophalen(client, auth, monkeypatch):
 
 def test_async_afwijzen(client, auth, monkeypatch):
     import app.routers.uitvragen as uv
+    monkeypatch.setenv("DATASTATION_INTERNE_BESTEMMINGEN", "http://twin-datastation")  # B-29
     za_id = client.post("/api/zorgaanbieders/register", headers=auth,
                         json={"naam": "Weiger Zorg", "datastation_url": "http://twin-datastation"}).json()["id"]
     profs = client.get("/api/profielen", headers=auth).json()

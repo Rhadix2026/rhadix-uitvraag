@@ -119,7 +119,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home authUser={authUser} />} />
         <Route path="/opvragen" element={<QueryFlow />} />
-        <Route path="/zorgaanbieders" element={<Zorgaanbieders />} />
+        <Route path="/zorgaanbieders" element={<Zorgaanbieders isAdmin={isAdmin} isPlatform={isPlatform} />} />
         <Route path="/resultaten" element={<Results />} />
         <Route path="/analyse" element={<Analyse />} />
         <Route path="/dekking" element={<Dekking authUser={authUser} />} />

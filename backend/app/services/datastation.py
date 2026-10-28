@@ -11,10 +11,28 @@ op echte datastations kan worden aangesloten.
 from __future__ import annotations
 
 import hashlib
+import logging
+import re
 from dataclasses import dataclass
 from typing import Optional
 
-import httpx
+from app.services.bestemming import NietToegestaan, verzoek
+
+log = logging.getLogger("rhadix.datastation")
+
+# Wat de gebruiker te zien krijgt; details (adres, foutmelding) alleen in de log (B-29).
+MELDING_NIET_TOEGESTAAN = "Datastation-bestemming niet toegestaan"
+MELDING_ONBEREIKBAAR = "Datastation niet bereikbaar"
+ZAAKNUMMER = re.compile(r"^[A-Za-z0-9-]{1,64}$")
+
+
+def _melding(exc: Exception, actie: str, naam: str) -> str:
+    """Log de oorzaak en geef een melding zonder netwerkdetails terug."""
+    if isinstance(exc, NietToegestaan):
+        log.warning("datastation %s voor %s geweigerd: %s", actie, naam, exc)
+        return MELDING_NIET_TOEGESTAAN
+    log.warning("datastation %s voor %s mislukt: %s: %s", actie, naam, type(exc).__name__, exc)
+    return MELDING_ONBEREIKBAAR
 
 
 @dataclass
@@ -70,11 +88,8 @@ def vraag_indicator(zorgaanbieder, indicator: dict) -> DatastationAntwoord:
         t0 = time.monotonic()
         try:
             sparql = build_sparql(indicator["code"])
-            resp = httpx.post(f"{url.rstrip('/')}/api/datastation/beantwoord",
-                              json={"sparql": sparql}, timeout=12.0)
-            resp.raise_for_status()
+            d = verzoek("POST", url, "/api/datastation/beantwoord", {"sparql": sparql})
             dur = int((time.monotonic() - t0) * 1000)
-            d = resp.json()
             status = d.get("status")
             if status == "OK" and d.get("waarde") is not None:
                 return DatastationAntwoord("OK", float(d["waarde"]), duur_ms=dur)
@@ -83,7 +98,7 @@ def vraag_indicator(zorgaanbieder, indicator: dict) -> DatastationAntwoord:
             return DatastationAntwoord("FOUT", None, d.get("toelichting") or "Datastation gaf geen waarde", dur)
         except Exception as exc:
             dur = int((time.monotonic() - t0) * 1000)
-            return DatastationAntwoord("FOUT", None, f"Datastation onbereikbaar: {exc}", dur)
+            return DatastationAntwoord("FOUT", None, _melding(exc, "beantwoord", naam), dur)
     return _simuleer(naam, indicator)
 
 
@@ -99,29 +114,27 @@ def dien_in(zorgaanbieder, indicator: dict, afnemer: str | None = None) -> dict:
     t0 = time.monotonic()
     try:
         sparql = build_sparql(indicator["code"])
-        resp = httpx.post(
-            f"{url.rstrip('/')}/api/datastation/vragen",
-            json={"sparql": sparql, "uitwisselprofiel": indicator.get("profiel"),
-                  "indicator_code": indicator["code"], "indicator_label": indicator.get("label"),
-                  "afnemer": afnemer, "zorgaanbieder": naam},
-            timeout=12.0)
-        resp.raise_for_status()
+        d = verzoek("POST", url, "/api/datastation/vragen",
+                    {"sparql": sparql, "uitwisselprofiel": indicator.get("profiel"),
+                     "indicator_code": indicator["code"], "indicator_label": indicator.get("label"),
+                     "afnemer": afnemer, "zorgaanbieder": naam})
         dur = int((time.monotonic() - t0) * 1000)
-        d = resp.json()
+        if not ZAAKNUMMER.match(str(d.get("query_id") or "")):
+            raise NietToegestaan("antwoord zonder geldig zaaknummer")
         return {"modus": "async", "query_id": d.get("query_id"), "status": "UITGEZET",
                 "duur_ms": dur, "url": url.rstrip('/'),
                 "toelichting": f"Uitgezet bij datastation van {naam}; wacht op beoordeling"}
     except Exception as exc:
         dur = int((time.monotonic() - t0) * 1000)
         return {"modus": "async", "query_id": None, "status": "FOUT", "duur_ms": dur,
-                "url": url, "toelichting": f"Datastation onbereikbaar: {exc}"}
+                "url": url, "toelichting": _melding(exc, "indienen", naam)}
 
 
 def haal_resultaat(url: str, query_id: str) -> dict:
     """Haal het resultaat van een uitgezette vraag op bij het datastation."""
     try:
-        resp = httpx.get(f"{url.rstrip('/')}/api/datastation/vragen/{query_id}/resultaat", timeout=12.0)
-        resp.raise_for_status()
-        return resp.json()
+        if not ZAAKNUMMER.match(str(query_id or "")):
+            raise NietToegestaan("ongeldig zaaknummer")
+        return verzoek("GET", url, f"/api/datastation/vragen/{query_id}/resultaat")
     except Exception as exc:
-        return {"status": "FOUT", "toelichting": f"Ophalen mislukt: {exc}"}
+        return {"status": "FOUT", "toelichting": _melding(exc, "ophalen", query_id)}
