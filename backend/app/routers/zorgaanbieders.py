@@ -1,9 +1,12 @@
 """
 zorgaanbieders.py — Zelfregistratie, import en overzicht van zorgaanbieders.
 
-Registratie is *publiek* (een zorgaanbieder meldt zich aan om uitvragen te kunnen
-ontvangen). Het overzicht is voor ingelogde ketenpartijen, die hieruit kiezen.
-Beheerders kunnen een KIK-V zorgaanbieders-export (CSV) importeren.
+De lijst is gedeeld over alle organisaties. Daarom (B-29):
+- registreren vraagt een ingelogde ORG_ADMIN of PLATFORM_ADMIN;
+- een datastation-URL zetten en de CSV-import zijn voorbehouden aan PLATFORM_ADMIN,
+  en een URL moet op de allowlist staan (`services/bestemming.py`);
+- de URL zelf is alleen zichtbaar voor PLATFORM_ADMIN.
+Het overzicht is voor ingelogde ketenpartijen, die hieruit kiezen.
 """
 from __future__ import annotations
 
@@ -16,10 +19,14 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, require_role
 from app.database import get_db
-from app.models.auth_models import User
+from app.models.auth_models import User, UserRole
 from app.models.kik_models import Zorgaanbieder
+from app.services.bestemming import is_toegestaan, normaliseer
+
+_beheerder = require_role(UserRole.ORG_ADMIN, UserRole.PLATFORM_ADMIN)
+_platform_admin = require_role(UserRole.PLATFORM_ADMIN)
 
 router = APIRouter(tags=["zorgaanbieders"])
 
@@ -62,16 +69,23 @@ class RegisterZorgaanbieder(BaseModel):
 
 
 @router.post("/zorgaanbieders/register", status_code=201)
-def register(body: RegisterZorgaanbieder, db: Session = Depends(get_db)):
-    """Publieke zelfregistratie van een zorgaanbieder."""
+def register(body: RegisterZorgaanbieder, db: Session = Depends(get_db),
+             current: User = Depends(_beheerder)):
+    """Registratie van een zorgaanbieder door een beheerder."""
     naam = body.naam.strip()
     if not naam:
         raise HTTPException(422, "Naam is verplicht")
+    url = (body.datastation_url or "").strip() or None
+    if url:
+        if current.role != UserRole.PLATFORM_ADMIN:
+            raise HTTPException(403, "Alleen een platformbeheerder kan een datastation-URL instellen")
+        if not is_toegestaan(url):
+            raise HTTPException(422, "Deze datastation-URL is niet toegestaan")
+        url = normaliseer(url)
     if db.query(Zorgaanbieder).filter(Zorgaanbieder.naam == naam).first():
         raise HTTPException(400, f"Zorgaanbieder '{naam}' is al geregistreerd")
     z = Zorgaanbieder(id=uuid.uuid4(), naam=naam, kvk=body.kvk, plaats=body.plaats,
-                      contact_email=body.contact_email,
-                      datastation_url=(body.datastation_url or None))
+                      contact_email=body.contact_email, datastation_url=url)
     db.add(z); db.commit(); db.refresh(z)
     return _dict(z)
 
@@ -88,7 +102,10 @@ def get_zorgaanbieder(za_id: str, db: Session = Depends(get_db),
     z = db.query(Zorgaanbieder).filter(Zorgaanbieder.id == za_id).first()
     if not z:
         raise HTTPException(404, "Zorgaanbieder niet gevonden")
-    return _dict(z, vol=True)
+    d = _dict(z, vol=True)
+    if current.role != UserRole.PLATFORM_ADMIN:
+        d.pop("datastation_url", None)
+    return d
 
 
 # ── CSV-import (KIK-V zorgaanbieders-export) ──────────────────────────────────
@@ -116,7 +133,7 @@ def _s(val: str):
 @router.post("/zorgaanbieders/import")
 async def import_zorgaanbieders(file: UploadFile = File(...),
                                 db: Session = Depends(get_db),
-                                current: User = Depends(get_current_user)):
+                                current: User = Depends(_platform_admin)):
     """Importeer een KIK-V zorgaanbieders-export (CSV). Dedupliceert op KVK;
     bij meerdere rijen per aanbieder (verschillende contactpersonen) wordt de
     eerste rij mét contact-e-mail als hoofdcontact gebruikt. Bestaande aanbieders

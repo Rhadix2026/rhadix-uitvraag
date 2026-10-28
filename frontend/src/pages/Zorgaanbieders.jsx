@@ -11,7 +11,7 @@ function FaseBadge({ fase }) {
   return <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: bg, color: c }}>{fase}</span>
 }
 
-export default function Zorgaanbieders() {
+export default function Zorgaanbieders({ isAdmin = false, isPlatform = false }) {
   const [rows, setRows] = useState([])
   const [open, setOpen] = useState(false)
   const [fout, setFout] = useState(null)
@@ -66,8 +66,8 @@ export default function Zorgaanbieders() {
           style={{ flex: 1, minWidth: 260, padding: '9px 14px', borderRadius: 'var(--radius)', border: '1.5px solid var(--border)', fontSize: 14 }} />
         <span style={{ fontSize: 13, color: 'var(--text3)', whiteSpace: 'nowrap' }}>{gefilterd.length} van {rows.length}</span>
         <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={csvGekozen} style={{ display: 'none' }} />
-        <BtnPrimary onClick={() => fileRef.current?.click()} disabled={bezig}>{bezig ? 'Bezig…' : '⬆ CSV importeren'}</BtnPrimary>
-        <BtnPrimary onClick={() => setOpen(true)}>+ Registreren</BtnPrimary>
+        {isPlatform && <BtnPrimary onClick={() => fileRef.current?.click()} disabled={bezig}>{bezig ? 'Bezig…' : '⬆ CSV importeren'}</BtnPrimary>}
+        {isAdmin && <BtnPrimary onClick={() => setOpen(true)}>+ Registreren</BtnPrimary>}
       </div>
 
       {importInfo && <Card style={{ marginBottom: 16, background: 'var(--green-light)', border: '1px solid var(--green)' }}>
@@ -117,7 +117,7 @@ export default function Zorgaanbieders() {
             <Field label="Plaats" value={form.plaats} onChange={v => setForm({ ...form, plaats: v })} />
             <Field label="KvK-nummer" value={form.kvk} onChange={v => setForm({ ...form, kvk: v })} />
             <Field label="Contact-e-mail" type="email" value={form.contact_email} onChange={v => setForm({ ...form, contact_email: v })} />
-            <Field label="Datastation-URL (SPARQL, optioneel)" value={form.datastation_url} onChange={v => setForm({ ...form, datastation_url: v })} placeholder="Leeg = gesimuleerd datastation" />
+            {isPlatform && <Field label="Datastation-URL (optioneel, alleen toegestane bestemmingen)" value={form.datastation_url} onChange={v => setForm({ ...form, datastation_url: v })} placeholder="Leeg = gesimuleerd datastation" />}
             <BtnPrimary disabled={!form.naam.trim() || bezig} onClick={opslaan}>{bezig ? 'Opslaan…' : 'Registreren'}</BtnPrimary>
           </div>
         </Modal>
