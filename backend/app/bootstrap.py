@@ -24,6 +24,13 @@ from app.models.kik_models import Zorgaanbieder, AanbiederCapability
 
 log = logging.getLogger("rhadix.bootstrap")
 
+TWIN_NAAM = "Twin Zorgaanbieder (datastation)"
+
+
+def twin_datastation_url() -> str | None:
+    """De expliciet geconfigureerde twin-URL, of None. Er is bewust geen standaard."""
+    return os.getenv("TWIN_DATASTATION_URL", "").strip() or None
+
 
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
@@ -154,14 +161,20 @@ def _seed_demo_zorgaanbieders() -> None:
         if db.query(Zorgaanbieder).count() == 0:
             for naam, plaats, email in demo:
                 db.add(Zorgaanbieder(id=uuid.uuid4(), naam=naam, plaats=plaats, contact_email=email))
-        # Twin-aanbieder met echt datastation (idempotent — ook op bestaande DB)
-        twin_naam = "Twin Zorgaanbieder (datastation)"
-        twin = db.query(Zorgaanbieder).filter(Zorgaanbieder.naam == twin_naam).first()
-        twin_url = os.getenv("TWIN_DATASTATION_URL", "http://host.docker.internal:8017")
-        if not twin:
-            db.add(Zorgaanbieder(id=uuid.uuid4(), naam=twin_naam, plaats="Demo",
+        # Twin-aanbieder met echt datastation (idempotent — ook op bestaande DB).
+        # Alleen als TWIN_DATASTATION_URL expliciet gezet is (B-27): een ontbrekende
+        # configuratie mag nooit stil naar een datastation van een andere omgeving
+        # wijzen. Zonder URL wordt een bestaande twin losgekoppeld; de rij en de
+        # antwoorden die eraan hangen blijven staan.
+        twin = db.query(Zorgaanbieder).filter(Zorgaanbieder.naam == TWIN_NAAM).first()
+        twin_url = twin_datastation_url()
+        if twin_url and not twin:
+            db.add(Zorgaanbieder(id=uuid.uuid4(), naam=TWIN_NAAM, plaats="Demo",
                                  contact_email="twin@rhadix.nl", datastation_url=twin_url))
-        else:
+        elif twin and twin.datastation_url != twin_url:
+            if not twin_url:
+                log.warning("TWIN_DATASTATION_URL niet gezet: twin-aanbieder losgekoppeld van %s",
+                            twin.datastation_url)
             twin.datastation_url = twin_url
         db.commit()
     finally:
@@ -207,15 +220,20 @@ def _seed_capabilities() -> None:
 
 
 def _seed_twin_capabilities() -> None:
-    """Twin-aanbieder krijgt voor elk geladen profiel een productie-capability (idempotent, altijd)."""
+    """Twin-aanbieder krijgt voor elk geladen profiel een productie-capability (idempotent).
+
+    Alleen als de twin geconfigureerd is; bestaande capabilities blijven staan.
+    """
     from app.services import profiles as profiles_svc
     from app.models.kik_models import AanbiederCapability, CapabilityStatus
+    if not twin_datastation_url():
+        return
     profs = profiles_svc.list_profiles()
     if not profs:
         return
     db = SessionLocal()
     try:
-        twin = "Twin Zorgaanbieder (datastation)"
+        twin = TWIN_NAAM
         have = {c.uitwisselprofiel for c in db.query(AanbiederCapability).filter(AanbiederCapability.aanbieder_naam == twin).all()}
         added = 0
         for prof in profs:

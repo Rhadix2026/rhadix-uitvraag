@@ -221,7 +221,8 @@ def test_async_afwijzen(client, auth, monkeypatch):
     key = profs[0]["key"]
     code = client.get(f"/api/profielen/{key}", headers=auth).json()["indicatoren"][0]["code"]
     monkeypatch.setattr(uv, "dien_in", lambda z, ind, afnemer=None: {
-        "modus": "async", "query_id": "Q-9", "status": "UITGEZET", "duur_ms": 5, "url": "http://x"})
+        "modus": "async", "query_id": "Q-9", "status": "UITGEZET", "duur_ms": 5,
+        "url": "http://twin-datastation"})
     u = client.post("/api/uitvragen", headers=auth, json={
         "profiel_key": key, "indicator_codes": [code], "zorgaanbieder_ids": [za_id]}).json()
     monkeypatch.setattr(uv, "haal_resultaat",
