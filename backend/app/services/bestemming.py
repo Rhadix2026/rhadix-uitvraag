@@ -143,6 +143,10 @@ def verzoek(methode: str, basis_url: str, pad: str, body: Optional[dict] = None,
     pad_basis = urlsplit(b.url).path
     headers, extensions = {}, {}
     if token:
+        # Een token gaat nooit onversleuteld over het netwerk: alleen over https, of
+        # naar een expliciet interne bestemming (zelfde host / intern Docker-netwerk).
+        if not b.intern and b.schema != "https":
+            raise NietToegestaan("token alleen over https naar een publieke bestemming")
         headers["Authorization"] = f"Bearer {token}"
     if b.intern:
         doel = f"{b.url}{pad}"
