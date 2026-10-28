@@ -124,3 +124,14 @@ def test_token_nooit_in_log_of_melding(net, caplog):
     assert t not in caplog.text and "handtekening" not in caplog.text
     assert "Geheim-wachtwoord-123!" not in caplog.text
     assert t not in r["toelichting"]
+
+
+def test_token_nooit_over_http_naar_publieke_bestemming(net, monkeypatch):
+    monkeypatch.setenv("DATASTATION_BESTEMMINGEN", "http://datastation.voorbeeld.nl,https://datastation.voorbeeld.nl")
+    monkeypatch.setattr(bestemming, "_resolve", lambda host, poort: ["93.184.216.34"])
+    r = ds.dien_in(_Za("http://datastation.voorbeeld.nl"), IND)
+    assert r["status"] == "FOUT" and r["toelichting"] == ds.MELDING_NIET_TOEGESTAAN
+    assert net["verzoeken"] == [], "geen verzoek, dus ook geen token over http"
+    r = ds.dien_in(_Za("https://datastation.voorbeeld.nl"), IND)
+    assert r["status"] == "UITGEZET" and net["verzoeken"][-1].url.scheme == "https"
+    assert net["verzoeken"][-1].headers["authorization"].startswith("Bearer ")
