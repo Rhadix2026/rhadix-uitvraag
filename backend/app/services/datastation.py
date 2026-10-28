@@ -16,7 +16,10 @@ import re
 from dataclasses import dataclass
 from typing import Optional
 
-from app.services.bestemming import NietToegestaan, verzoek
+import httpx
+
+from app.services import afnemer_token
+from app.services.bestemming import NietToegestaan, controleer, verzoek
 
 log = logging.getLogger("rhadix.datastation")
 
@@ -24,6 +27,21 @@ log = logging.getLogger("rhadix.datastation")
 MELDING_NIET_TOEGESTAAN = "Datastation-bestemming niet toegestaan"
 MELDING_ONBEREIKBAAR = "Datastation niet bereikbaar"
 ZAAKNUMMER = re.compile(r"^[A-Za-z0-9-]{1,64}$")
+
+
+def _aanroep(methode: str, url: str, pad: str, body: Optional[dict] = None) -> dict:
+    """Aanroep als afnemer: met het centrale token van het serviceaccount (B-28).
+    Na een 401 één keer opnieuw met een vers token (verlopen of ingetrokken).
+    Eerst de bestemming: voor een geweigerde bestemming wordt niet eens ingelogd."""
+    controleer(url)
+    t = afnemer_token.token()
+    try:
+        return verzoek(methode, url, pad, body, token=t)
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code != 401 or not t:
+            raise
+        afnemer_token.vergeet()
+        return verzoek(methode, url, pad, body, token=afnemer_token.token(vernieuw=True))
 
 
 def _melding(exc: Exception, actie: str, naam: str) -> str:
@@ -88,7 +106,7 @@ def vraag_indicator(zorgaanbieder, indicator: dict) -> DatastationAntwoord:
         t0 = time.monotonic()
         try:
             sparql = build_sparql(indicator["code"])
-            d = verzoek("POST", url, "/api/datastation/beantwoord", {"sparql": sparql})
+            d = _aanroep("POST", url, "/api/datastation/beantwoord", {"sparql": sparql})
             dur = int((time.monotonic() - t0) * 1000)
             status = d.get("status")
             if status == "OK" and d.get("waarde") is not None:
@@ -114,7 +132,7 @@ def dien_in(zorgaanbieder, indicator: dict, afnemer: str | None = None) -> dict:
     t0 = time.monotonic()
     try:
         sparql = build_sparql(indicator["code"])
-        d = verzoek("POST", url, "/api/datastation/vragen",
+        d = _aanroep("POST", url, "/api/datastation/vragen",
                     {"sparql": sparql, "uitwisselprofiel": indicator.get("profiel"),
                      "indicator_code": indicator["code"], "indicator_label": indicator.get("label"),
                      "afnemer": afnemer, "zorgaanbieder": naam})
@@ -135,6 +153,6 @@ def haal_resultaat(url: str, query_id: str) -> dict:
     try:
         if not ZAAKNUMMER.match(str(query_id or "")):
             raise NietToegestaan("ongeldig zaaknummer")
-        return verzoek("GET", url, f"/api/datastation/vragen/{query_id}/resultaat")
+        return _aanroep("GET", url, f"/api/datastation/vragen/{query_id}/resultaat")
     except Exception as exc:
         return {"status": "FOUT", "toelichting": _melding(exc, "ophalen", query_id)}
