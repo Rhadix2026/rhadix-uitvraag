@@ -94,6 +94,12 @@ services:
       # geweigerd. Intern = bewust toegestaan intern adres, zonder IP-controle.
       DATASTATION_BESTEMMINGEN:         ${DATASTATION_BESTEMMINGEN:-}
       DATASTATION_INTERNE_BESTEMMINGEN: http://host.docker.internal:8017
+      # Afnemer-identiteit bij het datastation (B-28): centraal serviceaccount.
+      # E-mail en wachtwoord staan alleen in het serverbestand hieronder (600, root).
+      DATASTATION_AFNEMER_LOGIN_URL: https://app-staging.rhadix.nl
+    env_file:
+      - path: /opt/kik-app/datastation-afnemer.staging.env
+        required: false
     ports:
       - "${STAGING_BACKEND_PORT:-8013}:8000"
 

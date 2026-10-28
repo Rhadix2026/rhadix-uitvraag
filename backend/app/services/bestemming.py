@@ -133,13 +133,17 @@ def controleer(url: Optional[str]) -> Bestemming:
     return Bestemming(n, d.scheme, host, poort, intern=False, adres=adressen[0])
 
 
-def verzoek(methode: str, basis_url: str, pad: str, body: Optional[dict] = None) -> dict:
+def verzoek(methode: str, basis_url: str, pad: str, body: Optional[dict] = None,
+            token: Optional[str] = None) -> dict:
     """Doe één verzoek naar een toegestane bestemming en geef de JSON terug.
 
-    `pad` begint met '/' en komt uit de eigen code (gevalideerde onderdelen)."""
+    `pad` begint met '/' en komt uit de eigen code (gevalideerde onderdelen).
+    `token` gaat pas mee nadat de bestemming is goedgekeurd (B-28)."""
     b = controleer(basis_url)
     pad_basis = urlsplit(b.url).path
     headers, extensions = {}, {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     if b.intern:
         doel = f"{b.url}{pad}"
     else:
